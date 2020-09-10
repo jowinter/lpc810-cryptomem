@@ -1,5 +1,24 @@
 # Minimalistic Embedded Trusted Platform Module (on the NXP LPC810)
 
+## Motivation
+This toy firmware project aims at two main goals: Firstly, we demonstrate that non-trivial cryptographic functionality can be implemented even on
+tiny ARM Cortex-M0+ microcontrollers such as the NXP LPC810. The firmware provides all primitives to implement a simple, yet fully functional, remote
+attestation mechanism given the constraints of a tiny MCU.
+
+The secondary goal of this project is to have a small reference environment (hardware plus firmware) for experimenting with side-channel analysis and
+fault-attacks. In its current form the "LPC810 CryptoMem" firmware does *on purpose* not implement any hardening against side-channel or fault attacks:
+
+* The SHA256 (and HMAC) implementation used in the firmware are pure text-book implementations without any countermeasures. Significant side-channel leakage
+  is to be expected (and is expected to make a good side-channel target for further analysis with a ChipWhisperer).
+  
+* The I2C interface and the supported commands do not contany any *intentional* logic bugs. All commands are should be safe against buffer and integer overflows.
+  (At a later stage we may consider to formally verify properties of selected parts of the implementation through Frama-C).
+  
+* The "Device Initialization" and "Firmware Update / Entry to ROM Bootloader" commands implement simple access policy checks (device locked?). These checks
+  are realized using normal if statements without any hardening against fault-attacks (and therefore make a good first candidate for fault-injection through
+  clock/power glitches using a ChipWhisperer).
+
+## Firmware Overview
 The "LPC810 CryptoMem" firmware implements a minimalistic embedded Trusted Platform Module (TPM) on based NXP LPC810 microcontroller. The LPC810 MCU is
 an ARM Cortex-M0+ based embedded SoC providing 4K of in-system programmable flash memory, and 1K of SRAM. The IC is available in multiple packaging
 options, including an through-hole mounted 8-pin DIP package.

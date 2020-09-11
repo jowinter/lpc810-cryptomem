@@ -27,8 +27,8 @@ The firmware in this repository implements a set of crypto primitives similar to
 firmware is on remote attestation using HMAC-SHA256 as (symmetric) signature algorithm. Major firmware facilities include:
 
    * An I2C slave interface with a 256-byte register space. The I2C protocol used by the slave interface is compatible with AT24Cxx-style I2C EEPROMs
-     such as the AT24C02 or the PCF8570. Communication with the I2C slave interface is possible through standard Linux I2C utilities like `i2c-utils` or `eeprog`.
-     (It should also be possible to directly interact with the firmware through the unmodified `at24` and `eeprom` kernel drivers)
+     such as the AT24C02 or the PCF8570. Communication with the I2C slave interface is possible through standard Linux I2C utilities like `i2c-utils` or `eeprog`,
+     or with the unmodified `at24` linux kernel drivers (device type is `at24c02`)
    
    * Platform Configuration Registers: Three 256-bit platform configuration registers (PCR0-PCR2) are implemented. The PCRs reset to all zero values on reset of the IC. The PCRs
      can be read directly through the register space. All three PCRs can be modified through a SHA256 based PCR `Extend` command. The `Extend` command takes the contatenation

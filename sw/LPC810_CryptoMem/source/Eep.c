@@ -321,6 +321,16 @@ static void Eep_WriteSetupStateHandler(I2C_Type *base, volatile i2c_slave_transf
 		// The master has issued a stop condition, process the page (or byte write)
 		Eep_I2CFinalizeWrite(base, transfer);
 	}
+	else if (event == kI2C_SlaveTransmitEvent)
+	{
+		// The master sent a repeated start condition, and toggled from write to read
+
+		// Terminate the write
+		Eep_I2CFinalizeWrite(base, transfer);
+
+		// And start the read
+		Eep_I2CSetupByteRead(base, transfer);
+	}
 	else
 	{
 		// Unexpected event (should not happen with current I2C slave driver)

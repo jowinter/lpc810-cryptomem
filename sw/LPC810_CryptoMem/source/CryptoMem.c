@@ -164,7 +164,7 @@ typedef union {
 		/**
 		 * @brief NV valid marker
 		 */
-		uint32_t marker;
+		volatile uint32_t marker;
 
 		uint8_t rfu[28u];
 
@@ -529,9 +529,9 @@ static uint8_t CryptoMem_HandleIncrement(void)
 // TODO: Authentication
 //
 //   Input:
-//     ARG_0: Must be 0x69 ('i')
-//     ARG_1: Must be 0x73 ('s')
-//     ARG_2: Must be 0x70 ('p')
+//     ARG_0: Should be 0x69 ('i')
+//     ARG_1: Should be 0x73 ('s')
+//     ARG_2: Should be 0x70 ('p')
 //
 //  Output:
 //     RET_0: Return code from command
@@ -539,32 +539,23 @@ static uint8_t CryptoMem_HandleIncrement(void)
 //          0xE4 - Command execution failed
 //          0xE5 - Command not allowed in this device state
 //
-//     RET_1: Reserved (set to zero)
+//  RET_1: Reserved (set to zero)
 //
 
 static uint8_t CryptoMem_HandleFieldUpdate(void)
 {
-	const uint8_t magic_0 = gIoMem.regs.ARG_0;
-	const uint8_t magic_1 = gIoMem.regs.ARG_1;
-	const uint8_t magic_2 = gIoMem.regs.ARG_2;
-
-	if ((magic_0 != 0x69u) || (magic_1 != 0x73u) || (magic_2 != 0x70u))
+	if (gNv.fields.marker == UINT32_C(0xAACCEE55))
 	{
-		// Parameter error
-		return CryptoMem_FinishCommand(0xE1u);
+		// Enter ISP mode (only returns on failure)
+		Hal_EnterBootloader((uint32_t *)&gIoMem.regs.DATA[0]);
+
+		return CryptoMem_FinishCommandWithData(0xE4u, 4u);
 	}
-
-	// Check the NVM marker
-	if (gNv.fields.marker != UINT32_C(0xAACCEE55))
+	else
 	{
-		// Marker is set, refuse to write
+		// No maintenance allowed
 		return CryptoMem_FinishCommand(0xE5u);
 	}
-
-	// Enter ISP mode (only returns on failure)
-	Hal_EnterBootloader((uint32_t *)&gIoMem.regs.DATA[0]);
-
-	return CryptoMem_FinishCommandWithData(0xE4u, 4u);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -574,9 +565,9 @@ static uint8_t CryptoMem_HandleFieldUpdate(void)
 // TODO: Authentication
 //
 //   Input:
-//     ARG_0: Must be 0x6E ('n')
-//     ARG_1: Must be 0x76 ('v')
-//     ARG_2: Must be 0x21 ('!')
+//     ARG_0: Should be 0x6E ('n')
+//     ARG_1: Should be 0x76 ('v')
+//     ARG_2: Should be 0x21 ('!')
 //
 //     DATA[0x00..0x3F]: Data to be written on the NV config page
 //
@@ -591,30 +582,21 @@ static uint8_t CryptoMem_HandleFieldUpdate(void)
 
 static uint8_t CryptoMem_HandleNvWrite(void)
 {
-	const uint8_t magic_0 = gIoMem.regs.ARG_0;
-	const uint8_t magic_1 = gIoMem.regs.ARG_1;
-	const uint8_t magic_2 = gIoMem.regs.ARG_2;
-
-	if ((magic_0 != 0x6Eu) || (magic_1 != 0x76u) || (magic_2 != 0x21u))
+	if (gNv.fields.marker == UINT32_C(0xAACCEE55))
 	{
-		// Parameter error
-		return CryptoMem_FinishCommand(0xE1u);
+		// Write to the flash
+		if (!Hal_NvWrite(&gNv, &gIoMem.regs.DATA[0u]))
+		{
+			return CryptoMem_FinishCommand(0xE4);
+		}
+
+		return CryptoMem_FinishCommand(0x00u);
 	}
-
-	// Check the NVM marker
-	if (gNv.fields.marker != UINT32_C(0xAACCEE55))
+	else
 	{
-		// Marker is set, refuse to write
+		// No maintenance allowed
 		return CryptoMem_FinishCommand(0xE5u);
 	}
-
-	// Write to the flash
-	if (!Hal_NvWrite(&gNv, &gIoMem.regs.DATA[0u]))
-	{
-		return CryptoMem_FinishCommand(0xE4);
-	}
-
-	return CryptoMem_FinishCommand(0x00u);
 }
 
 //---------------------------------------------------------------------------------------------------------------------

@@ -4,6 +4,7 @@
  */
 
 #include <Hal.h>
+#include <Eep.h>
 
 #include "board.h"
 #include "peripherals.h"
@@ -11,7 +12,6 @@
 #include "clock_config.h"
 
 #include "fsl_swm.h"
-#include "fsl_i2c.h"
 #include "fsl_iap.h"
 
 #include "LPC810.h"
@@ -38,6 +38,10 @@ void Hal_Init(void)
 	BOARD_InitBootPins();
 	BOARD_InitBootClocks();
 	BOARD_InitBootPeripherals();
+
+	// Setup the I2C slave
+	CLOCK_EnableClock(kCLOCK_I2c0);
+	Eep_I2CSetClockDivider();
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -55,7 +59,7 @@ void Hal_Halt(void)
 	__disable_irq();
 
 	// Stop the I2C slave interface
-	I2C_SlaveDeinit(I2C0_PERIPHERAL);
+	Eep_I2CStopSlave();
 
 	// Now sleep forever
 	while (true)
@@ -124,6 +128,12 @@ bool Hal_NvWrite(const void* data, const uint8_t nv_page[64u])
 	}
 
 	return true;
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void I2C0_IRQHandler(void)
+{
+	Eep_I2CSlaveIrqHandler();
 }
 
 //---------------------------------------------------------------------------------------------------------------------

@@ -114,18 +114,6 @@
          <dcdx_configurations/>
       </dcdx>
       <periphs name="Peripherals" version="7.0" enabled="true" update_project_code="true">
-         <dependencies>
-            <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_i2c" description="I2C Driver not found in the toolchain/IDE project. Project will not compile!" problem_level="2" source="Peripherals">
-               <feature name="enabled" evaluation="equal">
-                  <data type="Boolean">true</data>
-               </feature>
-            </dependency>
-            <dependency resourceType="SWComponent" resourceId="platform.drivers.lpc_i2c" description="Unsupported version of the I2C Driver in the toolchain/IDE project. Required: ${required_value}, actual: ${actual_value}. Project might not compile correctly." problem_level="1" source="Peripherals">
-               <feature name="version" evaluation="equivalent">
-                  <data type="Version">2.0.2</data>
-               </feature>
-            </dependency>
-         </dependencies>
          <generated_project_files>
             <file path="board/peripherals.c" update_enabled="true"/>
             <file path="board/peripherals.h" update_enabled="true"/>
@@ -137,77 +125,15 @@
             <functional_group name="BOARD_InitPeripherals" uuid="4b00c524-a63f-4dfe-92ee-a1065f4615d3" called_from_default_init="true" id_prefix="" core="core0">
                <description></description>
                <options/>
-               <dependencies>
-                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="I2C0.i2c_scl" description="Signal I2C serial clock of the peripheral I2C0 is not routed. Problem must be resolved in another tool." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
-                     <feature name="routed" evaluation="">
-                        <data type="Boolean">true</data>
-                     </feature>
-                  </dependency>
-                  <dependency resourceType="PeripheralUnifiedSignal" resourceId="I2C0.i2c_sda" description="Signal I2C serial data of the peripheral I2C0 is not routed. Problem must be resolved in another tool." problem_level="1" source="Peripherals:BOARD_InitPeripherals">
-                     <feature name="routed" evaluation="">
-                        <data type="Boolean">true</data>
-                     </feature>
-                  </dependency>
-                  <dependency resourceType="ClockOutput" resourceId="I2C0_clock" description="I2C0 clock is inactive. Problem must be resolved in another tool." problem_level="2" source="Peripherals:BOARD_InitPeripherals">
-                     <feature name="frequency" evaluation="greaterThan">
-                        <data type="Frequency" unit="Hz">0</data>
-                     </feature>
-                  </dependency>
-               </dependencies>
-               <instances>
-                  <instance name="I2C0" uuid="63d15f43-84a0-4584-9ade-47e443beaac8" type="lpc_i2c" type_id="lpc_i2c_f5051a0134792729f1007113ec6ddccd" mode="I2C_Transfer" peripheral="I2C0" enabled="true" comment="" custom_name_enabled="false">
-                     <config_set name="fsl_transfer">
-                        <setting name="init_transfer" value="false"/>
-                        <struct name="slave_transfer_cfg">
-                           <setting name="init_rx_transfer" value="true"/>
-                           <setting name="rx_dataSize" value="10"/>
-                           <setting name="init_tx_transfer" value="true"/>
-                           <setting name="tx_dataSize" value="10"/>
-                        </struct>
-                     </config_set>
-                     <config_set name="transferCfg">
-                        <struct name="transfer">
-                           <setting name="init_callback" value="true"/>
-                           <setting name="callback_fcn" value="Eep_I2CHandleSlaveEvent"/>
-                           <setting name="user_data" value=""/>
-                        </struct>
-                     </config_set>
-                     <config_set name="fsl_i2c">
-                        <setting name="i2c_mode" value="kI2C_Slave"/>
-                        <setting name="clockSource" value="FunctionClock"/>
-                        <setting name="clockSourceFreq" value="BOARD_BootClockRUN"/>
-                        <struct name="i2c_slave_config">
-                           <setting name="enableSlave" value="true"/>
-                           <struct name="address0">
-                              <setting name="address" value="0x20"/>
-                              <setting name="addressDisable" value="false"/>
-                              <setting name="qualMode" value="kI2C_QualModeMask"/>
-                              <setting name="qualAddress" value="0"/>
-                           </struct>
-                           <struct name="address1">
-                              <setting name="address" value="0"/>
-                              <setting name="addressDisable" value="true"/>
-                           </struct>
-                           <struct name="address2">
-                              <setting name="address" value="0"/>
-                              <setting name="addressDisable" value="true"/>
-                           </struct>
-                           <struct name="address3">
-                              <setting name="address" value="0"/>
-                              <setting name="addressDisable" value="true"/>
-                           </struct>
-                           <setting name="busSpeed" value="kI2C_SlaveStandardMode"/>
-                        </struct>
-                     </config_set>
-                  </instance>
-               </instances>
+               <dependencies/>
+               <instances/>
             </functional_group>
          </functional_groups>
          <components>
             <component name="system" uuid="f2020f0b-2096-4345-b1aa-e53dd0a53fec" type_id="system_54b53072540eeeb8f8e9343e71f28176">
                <config_set_global name="global_system_definitions"/>
             </component>
-            <component name="msg" uuid="c19a21d2-35f3-4cc2-ac95-e185085eccfa" type_id="msg_6e2baaf3b97dbeef01c0043275f9a0e7">
+            <component name="msg" uuid="7e19c80d-783f-4dc0-8c1f-132d51003b48" type_id="msg_6e2baaf3b97dbeef01c0043275f9a0e7">
                <config_set_global name="global_messages"/>
             </component>
          </components>

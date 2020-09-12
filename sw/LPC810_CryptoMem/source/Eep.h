@@ -11,6 +11,15 @@
 #include <Hal.h>
 
 /**
+ * @brief Set the I2C clock divider
+ *
+ * @remarks This function should be called as part of hardware initialization, before the
+ *   slave is enabled for the first time. It is kept separately from the slave startup as
+ *   provision for simple integration in dual-role master/slave devices.
+ */
+extern void Eep_I2CSetClockDivider(void);
+
+/**
  * @brief Starts the I2C slave interface.
  */
 extern void Eep_I2CStartSlave(void);
@@ -19,6 +28,11 @@ extern void Eep_I2CStartSlave(void);
  * @brief Stops the I2C slave interface.
  */
 extern void Eep_I2CStopSlave(void);
+
+/**
+ * @brief IRQ handler for slave interrupts.
+ */
+extern void Eep_I2CSlaveIrqHandler(void);
 
 /**
  * @brief Provides EEPROM byte read data.

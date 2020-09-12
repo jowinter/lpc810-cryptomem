@@ -39,94 +39,10 @@ component:
 #include "peripherals.h"
 
 /***********************************************************************************************************************
- * BOARD_InitPeripherals functional group
- **********************************************************************************************************************/
-/***********************************************************************************************************************
- * I2C0 initialization code
- **********************************************************************************************************************/
-/* clang-format off */
-/* TEXT BELOW IS USED AS SETTING FOR TOOLS *************************************
-instance:
-- name: 'I2C0'
-- type: 'lpc_i2c'
-- mode: 'I2C_Transfer'
-- custom_name_enabled: 'false'
-- type_id: 'lpc_i2c_f5051a0134792729f1007113ec6ddccd'
-- functional_group: 'BOARD_InitPeripherals'
-- peripheral: 'I2C0'
-- config_sets:
-  - fsl_transfer:
-    - init_transfer: 'false'
-    - slave_transfer_cfg:
-      - init_rx_transfer: 'true'
-      - rx_dataSize: '10'
-      - init_tx_transfer: 'true'
-      - tx_dataSize: '10'
-  - transferCfg:
-    - transfer:
-      - init_callback: 'true'
-      - callback_fcn: 'Eep_I2CHandleSlaveEvent'
-      - user_data: ''
-  - fsl_i2c:
-    - i2c_mode: 'kI2C_Slave'
-    - clockSource: 'FunctionClock'
-    - clockSourceFreq: 'BOARD_BootClockRUN'
-    - i2c_slave_config:
-      - enableSlave: 'true'
-      - address0:
-        - address: '0x20'
-        - addressDisable: 'false'
-        - qualMode: 'kI2C_QualModeMask'
-        - qualAddress: '0'
-      - address1:
-        - address: '0'
-        - addressDisable: 'true'
-      - address2:
-        - address: '0'
-        - addressDisable: 'true'
-      - address3:
-        - address: '0'
-        - addressDisable: 'true'
-      - busSpeed: 'kI2C_SlaveStandardMode'
- * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
-/* clang-format on */
-const i2c_slave_config_t I2C0_config = {
-  .enableSlave = true,
-  .address0 = {
-    .address = 0x20,
-    .addressDisable = false
-  },
-  .qualMode = kI2C_QualModeMask,
-  .qualAddress = 0,
-  .address1 = {
-    .address = 0,
-    .addressDisable = true
-  },
-  .address2 = {
-    .address = 0,
-    .addressDisable = true
-  },
-  .address3 = {
-    .address = 0,
-    .addressDisable = true
-  },
-  .busSpeed = kI2C_SlaveStandardMode
-};
-i2c_slave_handle_t I2C0_handle;
-
-void I2C0_init(void) {
-  /* Initialization function */
-  I2C_SlaveInit(I2C0_PERIPHERAL, &I2C0_config, I2C0_CLOCK_SOURCE);
-  I2C_SlaveTransferCreateHandle(I2C0_PERIPHERAL, &I2C0_handle, Eep_I2CHandleSlaveEvent, NULL);
-}
-
-/***********************************************************************************************************************
  * Initialization functions
  **********************************************************************************************************************/
 void BOARD_InitPeripherals(void)
 {
-  /* Initialize components */
-  I2C0_init();
 }
 
 /***********************************************************************************************************************

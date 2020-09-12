@@ -3,15 +3,13 @@
  * @brief EEPROM-style I2C Slave Interface
  *
  */
-
+#include <Hal.h>
 #include <Eep.h>
 
 #include "board.h"
 #include "peripherals.h"
 #include "pin_mux.h"
 #include "clock_config.h"
-
-#include "fsl_i2c.h"
 
 //---------------------------------------------------------------------------------------------------------------------
 /**
@@ -25,34 +23,19 @@ typedef enum
 	kEep_SlaveReady,
 
 	/**
-	 * @brief Slave is awaiting the register addresss.
+     * @brief Active data exchange with the slave is ongoing.
 	 */
 	kEep_SlaveAddress,
 
 	/**
-	 * @brief Setup phase byte write
+	 * @brief Read transaction (slave -> master) is ongoing.
 	 */
-	kEep_SlaveWriteSetup,
+	kEep_SlaveDataRead,
 
 	/**
-	 * @brief Data phase of byte write.
+	 * @brief Write transaction (master -> slave) is ongoing.
 	 */
-	kEep_SlaveWriteData,
-
-	/**
-	 * @brief Setup phase byte read
-	 */
-	kEep_SlaveReadSetup,
-
-	/**
-	 * @brief Data phase of byte read
-	 */
-	kEep_SlaveReadData,
-
-	/**
-	 * @brief Slave error state.
-	 */
-	kEep_SlaveError
+	kEep_SlaveDataWrite
 } Eep_SlaveFsmState_t;
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -70,21 +53,6 @@ typedef struct Eep_Slave
 	 * @brief Current register/memory address.
 	 */
 	uint8_t reg_addr;
-
-	/**
-	 * @brief Page address of current page write operation.
-	 */
-	uint8_t page_addr;
-
-	/**
-	 * @brief Receive length of the page buffer
-	 */
-	uint8_t page_len;
-
-	/**
-	 * @brief Slave page buffer.
-	 */
-	uint8_t page_buf[8u];
 } Eep_Slave_t;
 
 /**
@@ -92,350 +60,145 @@ typedef struct Eep_Slave
  */
 static Eep_Slave_t gSlave;
 
+#define I2C_SLAVE_DEV       I2C0
+#define I2C_SLAVE_ADDR      0x20u
+#define I2C_SLAVE_IRQ_FLAGS (I2C_INTSTAT_SLVPENDING_MASK | I2C_INTSTAT_SLVDESEL_MASK)
+#define I2C_SLAVE_NVIC_IRQn I2C0_IRQn
+
+/* definitions for SLVSTATE bits in I2C Status register STAT */
+#define I2C_STAT_SLVST_ADDR (0u)
+#define I2C_STAT_SLVST_RX   (1u)
+#define I2C_STAT_SLVST_TX   (2u)
+
+
+//---------------------------------------------------------------------------------------------------------------------
+void Eep_I2CSetClockDivider(void)
+{
+	// Setup the I2C clock divider for standard speed (100 kHz)
+	//
+	// Calculation ported from MCUxpresso fsl_i2c driver (I2C_SlaveDivVal)
+	//
+	// NOTE: We assume a fixed system clock (DEFAULT_SYSTEM_CLOCK). This allows constant folding on the divider
+	// calculation (and omits the __aeabi_udiv division code).
+
+	/* divVal = (sourceClock_Hz / 1000000) * (dataSetupTime_ns / 1000) */
+	const uint32_t data_setup_ns = 250u;
+	const uint32_t divider = ((DEFAULT_SYSTEM_CLOCK / 1000u) * data_setup_ns) / 1000000u;
+	I2C_SLAVE_DEV->CLKDIV = (divider < I2C_CLKDIV_DIVVAL_MASK) ? divider : I2C_CLKDIV_DIVVAL_MASK;
+}
+
 //---------------------------------------------------------------------------------------------------------------------
 void Eep_I2CStartSlave(void)
 {
-	// Ensure that any ongoing slave activities are halted
+	// Stop any ongoing slave activity
 	Eep_I2CStopSlave();
 
-    // Start the I2C slave
-    I2C_SlaveTransferNonBlocking(I2C0_PERIPHERAL, &I2C0_handle, kI2C_SlaveAddressMatchEvent);
+	// Enable the slave block and its interrupts
+	I2C_SLAVE_DEV->INTENSET = I2C_SLAVE_IRQ_FLAGS;
+
+	// Set the slave address
+	I2C_SLAVE_DEV->SLVADR[0u] = I2C_SLVADR_SLVADR(I2C_SLAVE_ADDR) | I2C_SLVADR_SADISABLE(0);
+	I2C_SLAVE_DEV->SLVADR[1u] = I2C_SLVADR_SLVADR(0)              | I2C_SLVADR_SADISABLE(1);
+	I2C_SLAVE_DEV->SLVADR[2u] = I2C_SLVADR_SLVADR(0)              | I2C_SLVADR_SADISABLE(1);
+	I2C_SLAVE_DEV->SLVADR[3u] = I2C_SLVADR_SLVADR(0)              | I2C_SLVADR_SADISABLE(1);
+
+	// No qualifier for SLVADR0 (use SLVADR0 as-is)
+	I2C_SLAVE_DEV->SLVQUAL0   = I2C_SLVQUAL0_SLVQUAL0(0) | I2C_SLVQUAL0_QUALMODE0(0);
+
+	// Finally enable the controller
+	I2C_SLAVE_DEV->CFG     |= I2C_CFG_SLVEN(1u);
+
+	// Ensure that the I2C interrupt is enabled
+	NVIC_EnableIRQ(I2C_SLAVE_NVIC_IRQn);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
 void Eep_I2CStopSlave(void)
 {
-	// Stop any pending I2C transfers
-	I2C_SlaveTransferAbort(I2C0_PERIPHERAL, &I2C0_handle);
+	// Stop the I2C slave block and disable all slave
+	I2C_SLAVE_DEV->CFG      &= ~I2C_CFG_SLVEN_MASK;
+	I2C_SLAVE_DEV->INTENCLR  = I2C_SLAVE_IRQ_FLAGS;
 
 	// Reset the slave to ready state
 	gSlave.state = kEep_SlaveReady;
-	gSlave.reg_addr = 0u;
+	gSlave.reg_addr = 0;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-/**
- * @brief Setup a byte read operation.
- */
-static void Eep_I2CSetupByteRead(I2C_Type *base, volatile i2c_slave_transfer_t *transfer)
+void Eep_I2CSlaveIrqHandler(void)
 {
-	uint8_t address = gSlave.reg_addr;
+	const uint32_t stat = I2C_SLAVE_DEV->STAT;
 
-	// Get the read-back data
-	gSlave.page_buf[0u] = Eep_ByteReadCallback(address);
-
-	// Advance the read address and the FSM state
-	gSlave.reg_addr = (gSlave.reg_addr + 1u) & 0xFFu;
-	gSlave.state = kEep_SlaveReadData;
-
-	// Setup a single-byte transfer
-	I2C_SlaveSetSendBuffer(base, transfer, &gSlave.page_buf[0u], 1u, (kI2C_SlaveCompletionEvent | kI2C_SlaveDeselectedEvent));
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-/**
- * @brief Setup a byte write operation.
- */
-static void Eep_I2CSetupByteWrite(I2C_Type *base, volatile i2c_slave_transfer_t *transfer)
-{
-	// Latch the page offset
-	uint8_t offset = gSlave.reg_addr - gSlave.page_addr;
-
-	// Advance to data stage (adjustment of addresses is handled there)
-	gSlave.state = kEep_SlaveWriteData;
-
-	// Setup a single-byte transfer
-	I2C_SlaveSetReceiveBuffer(base, transfer, &gSlave.page_buf[offset], 1u, (kI2C_SlaveCompletionEvent | kI2C_SlaveDeselectedEvent));
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-/**
- * @brief Completes a byte write operation.
- */
-static void Eep_I2CCompleteByteWrite(I2C_Type *base, volatile i2c_slave_transfer_t *transfer)
-{
-	// Latch the page offset
-	uint8_t offset = gSlave.reg_addr - gSlave.page_addr;
-
-	// Advance the page offset (modulo 8) and re-align the register address
-	offset = (offset + 1u) % sizeof(gSlave.page_buf);
-	gSlave.reg_addr = gSlave.page_addr + offset;
-
-	// Increment the page write length
-	if (gSlave.page_len < sizeof(gSlave.page_buf))
+	if ((stat & I2C_STAT_SLVDESEL_MASK) != 0U)
 	{
-		gSlave.page_len += 1u;
-	}
-
-	// Advance to setup stage (after completion)
-	gSlave.state = kEep_SlaveWriteSetup;
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-/**
- * @brief Completes a byte (or page) write operation upon reception of the stop condition.
- */
-static void Eep_I2CFinalizeWrite(I2C_Type *base, volatile i2c_slave_transfer_t *transfer)
-{
-	// An AT24Cxx style EEPROM typically would only interpret 1 byte and 8 byte writes
-	//
-	// We accept any write sequence with length between 0 and 8 bytes, and break it down into a sequence of
-	// single byte write callback invocations.
-
-	for (unsigned i = 0u, len = gSlave.page_len; i < len; ++i)
-	{
-		Eep_ByteWriteCallback((gSlave.page_addr + i) & 0xFFu, gSlave.page_buf[i]);
-	}
-
-	// Reset the page length
-	gSlave.page_len = 0u;
-
-	// Advance to ready stage (after completion)
-	gSlave.state = kEep_SlaveReady;
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-/**
- * @brief State handler for the "ready" state.
- */
-static void Eep_ReadyStateHandler(I2C_Type *base, volatile i2c_slave_transfer_t *transfer)
-{
-	const i2c_slave_transfer_event_t event = transfer->event;
-
-	if (event == kI2C_SlaveReceiveEvent)
-	{
-		// Master is writing the address byte
-		//
-		// This is the start of a new "Byte Write", "Page Write", or "Random Read" transaction.
-		// We latch the first incoming byte as new register address.
-		//
-		I2C_SlaveSetReceiveBuffer(base, transfer, &gSlave.reg_addr, 1, (kI2C_SlaveCompletionEvent | kI2C_SlaveDeselectedEvent));
-		gSlave.state = kEep_SlaveAddress;
-	}
-	else if (event == kI2C_SlaveTransmitEvent)
-	{
-		// Master is reading data from this slave
-		//
-		// This is the start of a new "Current Address Read" or "Sequential Read" transaction (or the
-		// read phase of a "Random Read" - which for all practical purposes can be handled like a sequential read).
-		Eep_I2CSetupByteRead(base, transfer);
-	}
-	else
-	{
-		// Unexpected event (should not happen with current I2C slave driver)
-		gSlave.state = kEep_SlaveError;
-	}
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-/**
- * @brief State handler for the "address" state.
- */
-static void Eep_AddressStateHandler(I2C_Type *base, volatile i2c_slave_transfer_t *transfer)
-{
-	const i2c_slave_transfer_event_t event = transfer->event;
-
-	if (event == kI2C_SlaveCompletionEvent)
-	{
-		// We have received a new slave address, and can advance to the write setup state.
-		//
-		// We latch the "page address" for the completion of the write phase.
-		gSlave.page_addr = gSlave.reg_addr;
-		gSlave.page_len = 0u;
-
-		gSlave.state = kEep_SlaveWriteSetup;
-	}
-	else
-	{
-		// Unexpected event (should not happen with current I2C slave driver)
-		//
-		// We advance to the error state
-		gSlave.state = kEep_SlaveError;
-	}
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-/**
- * @brief State handler for the "read-setup" state.
- */
-static void Eep_ReadSetupStateHandler(I2C_Type *base, volatile i2c_slave_transfer_t *transfer)
-{
-	const i2c_slave_transfer_event_t event = transfer->event;
-
-	if (event == kI2C_SlaveTransmitEvent)
-	{
-		// The master is requesting the next data byte
-		Eep_I2CSetupByteRead(base, transfer);
-	}
-	else if (event == kI2C_SlaveDeselectedEvent)
-	{
-		// The master has issued a stop condition
+		// Slave de-select event
 		gSlave.state = kEep_SlaveReady;
+
+		// Clear the slave de-select status bit
+		I2C_SLAVE_DEV->STAT = I2C_STAT_SLVDESEL_MASK;
 	}
-	else
+
+	if ((stat & I2C_STAT_SLVPENDING_MASK) != 0)
 	{
-		// Unexpected event (should not happen with current I2C slave driver)
-		//
-		// We advance to the error state
-		gSlave.state = kEep_SlaveError;
-	}
-}
+		// We have pending slave activity
+		const uint32_t slvstate = (stat & I2C_STAT_SLVSTATE_MASK) >> I2C_STAT_SLVSTATE_SHIFT;
 
-//---------------------------------------------------------------------------------------------------------------------
-/**
- * @brief State handler for the "read-data" state.
- */
-static void Eep_ReadDataStateHandler(I2C_Type *base, volatile i2c_slave_transfer_t *transfer)
-{
-	const i2c_slave_transfer_event_t event = transfer->event;
+		if (slvstate == I2C_STAT_SLVST_ADDR)
+		{
+			// Slave Address Matched (we have seen a start condition)
 
-	if (event == kI2C_SlaveCompletionEvent)
-	{
-		// Slave data transmission is complete, go back to setup state
-		gSlave.state = kEep_SlaveReadSetup;
-	}
-	else
-	{
-		// Unexpected event (should not happen with current I2C slave driver)
-		//
-		// We advance to the error state
-		gSlave.state = kEep_SlaveError;
-	}
-}
+			// Advance to sub-address state
+			gSlave.state = kEep_SlaveAddress;
 
-//---------------------------------------------------------------------------------------------------------------------
-/**
- * @brief State handler for the "write-setup" state.
- */
-static void Eep_WriteSetupStateHandler(I2C_Type *base, volatile i2c_slave_transfer_t *transfer)
-{
-	const i2c_slave_transfer_event_t event = transfer->event;
+			// Continue the I2C transaction
+			I2C_SLAVE_DEV->SLVCTL = I2C_SLVCTL_SLVCONTINUE_MASK;
+		}
+		else if (slvstate == I2C_STAT_SLVST_RX)
+		{
+			// Slave Receive (data is available)
+			const uint8_t rx_data = I2C_SLAVE_DEV->SLVDAT;
 
-	if (event == kI2C_SlaveReceiveEvent)
-	{
-		// The master is requesting the next data byte
-		Eep_I2CSetupByteWrite(base, transfer);
-	}
-	else if (event == kI2C_SlaveDeselectedEvent)
-	{
-		// The master has issued a stop condition, process the page (or byte write)
-		Eep_I2CFinalizeWrite(base, transfer);
-	}
-	else if (event == kI2C_SlaveTransmitEvent)
-	{
-		// The master sent a repeated start condition, and toggled from write to read
+			if (gSlave.state == kEep_SlaveAddress)
+			{
+				// Write to sub-address register (first write after address match)
+				gSlave.reg_addr = rx_data;
 
-		// Terminate the write
-		Eep_I2CFinalizeWrite(base, transfer);
+				// Advance to data write state.
+				gSlave.state = kEep_SlaveDataWrite;
+			}
+			else
+			{
+				// Data write from the master
+				const uint8_t rx_addr = gSlave.reg_addr++;
 
-		// And start the read
-		Eep_I2CSetupByteRead(base, transfer);
-	}
-	else
-	{
-		// Unexpected event (should not happen with current I2C slave driver)
-		//
-		// We advance to the error state
-		gSlave.state = kEep_SlaveError;
-	}
-}
+				// Stay in data write state
+				gSlave.state = kEep_SlaveDataWrite;
 
-//---------------------------------------------------------------------------------------------------------------------
-/**
- * @brief State handler for the "read-data" state.
- */
-static void Eep_WriteDataStateHandler(I2C_Type *base, volatile i2c_slave_transfer_t *transfer)
-{
-	const i2c_slave_transfer_event_t event = transfer->event;
+				// Process incoming data
+				Eep_ByteWriteCallback(rx_addr, rx_data);
+			}
 
-	if (event == kI2C_SlaveCompletionEvent)
-	{
-		// Slave data transmission is complete, go back to setup state
-		Eep_I2CCompleteByteWrite(base, transfer);
-	}
-	else
-	{
-		// Unexpected event (should not happen with current I2C slave driver)
-		//
-		// We advance to the error state
-		gSlave.state = kEep_SlaveError;
-	}
-}
+			// Continue the I2C transaction
+			I2C_SLAVE_DEV->SLVCTL = I2C_SLVCTL_SLVCONTINUE_MASK;
+		}
+		else if (slvstate == I2C_STAT_SLVST_TX)
+		{
+			// Slave Transmit (data can be transmitted)
+			const uint8_t tx_addr = gSlave.reg_addr++;
 
-//---------------------------------------------------------------------------------------------------------------------
-/**
- * @brief State handler for the "error" state.
- */
-static void Eep_ErrorStateHandler(I2C_Type *base, volatile i2c_slave_transfer_t *transfer)
-{
-	const i2c_slave_transfer_event_t event = transfer->event;
+			// Respond with one byte of data from the current address
+			I2C_SLAVE_DEV->SLVDAT = Eep_ByteReadCallback(tx_addr);
 
-	// We ended up here as result of a protocol error (something really weird happened)
-	//
-	// There is currently not much that we can do.
-	if (event == kI2C_SlaveReceiveEvent)
-	{
-		// The master is trying to send a byte.
-		//
-		// We setup an empty transfer, monitor the deselect event and stay in error state.
-		I2C_SlaveSetReceiveBuffer(base, transfer, NULL, 0u, kI2C_SlaveDeselectedEvent);
-		gSlave.state = kEep_SlaveError;
-	}
-	else if (event == kI2C_SlaveTransmitEvent)
-	{
-		// The master is trying to read a byte.
-		//
-		// We setup respond with a NUL byte, monitor the deselect event and stay in error state.
-		static const uint8_t kNull = 0x00u;
-		I2C_SlaveSetSendBuffer(base, transfer, &kNull, 1u, kI2C_SlaveDeselectedEvent);
-		gSlave.state = kEep_SlaveError;
-	}
-	else if (event == kI2C_SlaveDeselectedEvent)
-	{
-		// We received a clean stop condition. Try to recover through "ready" state.
-		gSlave.state = kEep_SlaveReady;
-	}
-	else
-	{
-		// Unknown/unexpected event. We (explicitly) stay in error state.
-		gSlave.state = kEep_SlaveError;
-	}
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-void Eep_I2CHandleSlaveEvent(I2C_Type *base, volatile i2c_slave_transfer_t *transfer, void *userData)
-{
-	switch (gSlave.state)
-	{
-	case kEep_SlaveReady:
-		Eep_ReadyStateHandler(base, transfer);
-		break;
-
-	case kEep_SlaveAddress:
-		Eep_AddressStateHandler(base, transfer);
-		break;
-
-	case kEep_SlaveReadSetup:
-		Eep_ReadSetupStateHandler(base, transfer);
-		break;
-
-	case kEep_SlaveReadData:
-		Eep_ReadDataStateHandler(base, transfer);
-		break;
-
-	case kEep_SlaveWriteSetup:
-		Eep_WriteSetupStateHandler(base, transfer);
-		break;
-
-	case kEep_SlaveWriteData:
-		Eep_WriteDataStateHandler(base, transfer);
-		break;
-
-
-	case kEep_SlaveError:
-	default:
-		// Unexpected or unhandled state (we try best-effort recovery through the error state)
-		Eep_ErrorStateHandler(base, transfer);
-		break;
+			// Continue the transaction
+			I2C_SLAVE_DEV->SLVCTL = I2C_SLVCTL_SLVCONTINUE_MASK;
+		}
+		else
+		{
+			// Reserved slave state
+			//
+			// Something weird happened (e.g. hardware lockup). We cannot safely resume
+			// device operation, and therefore trigger a HAL halt/panic event.
+			Hal_Halt();
+		}
 	}
 }

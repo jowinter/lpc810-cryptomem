@@ -275,12 +275,12 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="startup"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="CMSIS"/>
-						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="source"/>
-						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="drivers"/>
-						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="device"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="board"/>
+						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="device"/>
+						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="drivers"/>
+						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="source"/>
+						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="startup"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -550,12 +550,12 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="startup"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="CMSIS"/>
-						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="source"/>
-						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="drivers"/>
-						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="device"/>
 						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="board"/>
+						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="device"/>
+						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="drivers"/>
+						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="source"/>
+						<entry flags="LOCAL|VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="startup"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -584,7 +584,7 @@
 	<storageModule moduleId="com.nxp.mcuxpresso.core.datamodels">
 		<sdkName>SDK_2.x_LPC810</sdkName>
 		<sdkVersion>2.7.0</sdkVersion>
-		<sdkComponents>middleware.baremetal.LPC810;platform.drivers.lpc_i2c.LPC810;platform.drivers.common.LPC810;platform.drivers.clock.LPC810;platform.drivers.power_no_lib.LPC810;device.LPC810_CMSIS.LPC810;platform.Include_core_cm0plus.LPC810;platform.Include_common.LPC810;platform.Include_dsp.LPC810;platform.drivers.reset.LPC810;platform.drivers.iap.LPC810;platform.drivers.wwdt.LPC810;platform.drivers.syscon.LPC810;platform.drivers.syscon_connections.LPC810;platform.drivers.swm.LPC810;platform.drivers.swm_connections.LPC810;device.LPC810_startup.LPC810;</sdkComponents>
+		<sdkComponents>middleware.baremetal.LPC810;platform.drivers.common.LPC810;platform.drivers.clock.LPC810;platform.drivers.power_no_lib.LPC810;device.LPC810_CMSIS.LPC810;platform.Include_core_cm0plus.LPC810;platform.Include_common.LPC810;platform.Include_dsp.LPC810;platform.drivers.reset.LPC810;platform.drivers.iap.LPC810;platform.drivers.wwdt.LPC810;platform.drivers.syscon.LPC810;platform.drivers.syscon_connections.LPC810;platform.drivers.swm.LPC810;platform.drivers.swm_connections.LPC810;device.LPC810_startup.LPC810;</sdkComponents>
 		<package>LPC810M021FN8</package>
 		<core>cm0plus</core>
 		<coreId>core0_LPC810</coreId>

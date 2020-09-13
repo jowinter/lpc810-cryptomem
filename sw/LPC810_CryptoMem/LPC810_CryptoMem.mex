@@ -110,15 +110,15 @@
                   </dependency>
                </dependencies>
                <clock_sources>
-                  <clock_source id="SYSCON.clk_in.outFreq" value="4 MHz" locked="false" enabled="false"/>
+                  <clock_source id="SYSCON.clk_in.outFreq" value="8 MHz" locked="false" enabled="false"/>
                   <clock_source id="SYSCON.wwdt_osc.outFreq" value="4 MHz" locked="false" enabled="false"/>
                </clock_sources>
                <clock_outputs>
-                  <clock_output id="I2C0_clock.outFreq" value="30 MHz" locked="false" accuracy=""/>
+                  <clock_output id="I2C0_clock.outFreq" value="8 MHz" locked="false" accuracy=""/>
                   <clock_output id="LowPower_clock.outFreq" value="10 kHz" locked="false" accuracy=""/>
-                  <clock_output id="SPI0_clock.outFreq" value="30 MHz" locked="false" accuracy=""/>
-                  <clock_output id="SYSPLL_clock.outFreq" value="60 MHz" locked="false" accuracy=""/>
-                  <clock_output id="System_clock.outFreq" value="30 MHz" locked="true" accuracy="0.001"/>
+                  <clock_output id="SPI0_clock.outFreq" value="8 MHz" locked="false" accuracy=""/>
+                  <clock_output id="SYSPLL_clock.outFreq" value="24 MHz" locked="false" accuracy=""/>
+                  <clock_output id="System_clock.outFreq" value="8 MHz" locked="true" accuracy="0.001"/>
                   <clock_output id="divto750k_clock.outFreq" value="750 kHz" locked="false" accuracy=""/>
                </clock_outputs>
                <clock_settings>
@@ -127,8 +127,8 @@
                   <setting id="SYSCON.DIV.scale" value="256" locked="false"/>
                   <setting id="SYSCON.MAINCLKSEL.sel" value="SYSCON.PLL" locked="false"/>
                   <setting id="SYSCON.MULT.scale" value="256" locked="false"/>
-                  <setting id="SYSCON.M_MULT.scale" value="5" locked="false"/>
-                  <setting id="SYSCON.SYSAHBCLKDIV.scale" value="2" locked="false"/>
+                  <setting id="SYSCON.M_MULT.scale" value="2" locked="false"/>
+                  <setting id="SYSCON.SYSAHBCLKDIV.scale" value="3" locked="false"/>
                   <setting id="UARTFRGConfig" value="Enabled" locked="false"/>
                </clock_settings>
                <called_from_default_init>true</called_from_default_init>
@@ -162,7 +162,7 @@
             <component name="system" uuid="f2020f0b-2096-4345-b1aa-e53dd0a53fec" type_id="system_54b53072540eeeb8f8e9343e71f28176">
                <config_set_global name="global_system_definitions"/>
             </component>
-            <component name="msg" uuid="9baa137a-d3aa-4887-82d9-622c2a6ad2bf" type_id="msg_6e2baaf3b97dbeef01c0043275f9a0e7">
+            <component name="msg" uuid="8e7ff1f2-4173-47fc-aaab-e406e2755caa" type_id="msg_6e2baaf3b97dbeef01c0043275f9a0e7">
                <config_set_global name="global_messages"/>
             </component>
          </components>

@@ -13,7 +13,11 @@
 // Pull-in the common device header
 #include "LPC810.h"
 
+// Default system clock (8 MHz)
+#define HAL_SYSTEM_CLOCK UINT32_C(0x8000000)
+
 extern void Hal_Init(void);
+extern void Hal_SwitchToExtClock(void);
 extern void Hal_Idle(void);
 extern __NO_RETURN void Hal_Halt(void);
 

@@ -83,7 +83,7 @@ void Eep_I2CSetClockDivider(void)
 
 	/* divVal = (sourceClock_Hz / 1000000) * (dataSetupTime_ns / 1000) */
 	const uint32_t data_setup_ns = 250u;
-	const uint32_t divider = ((DEFAULT_SYSTEM_CLOCK / 1000u) * data_setup_ns) / 1000000u;
+	const uint32_t divider = ((HAL_SYSTEM_CLOCK / 1000u) * data_setup_ns) / 1000000u;
 	I2C_SLAVE_DEV->CLKDIV = (divider < I2C_CLKDIV_DIVVAL_MASK) ? divider : I2C_CLKDIV_DIVVAL_MASK;
 }
 

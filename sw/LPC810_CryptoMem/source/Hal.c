@@ -48,6 +48,35 @@ void Hal_Init(void)
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+void Hal_SwitchToExtClock(void)
+{
+	__disable_irq();
+
+	// First switch to 12 MHz IRC clock
+	CLOCK_SetMainClkSrc(kCLOCK_MainClkSrcIrc);
+	CLOCK_SetCoreSysClkDiv(1u);
+
+	// Stop the SYSTEM PLL
+	CLOCK_DenitSystemPll();
+
+	// Start the IOCON and SWM clocks
+	CLOCK_EnableClock(kCLOCK_Swm);
+	CLOCK_EnableClock(kCLOCK_Iocon);
+
+	// Initialize the external clock input
+	CLOCK_InitExtClkin(HAL_SYSTEM_CLOCK);
+
+	// Stop the IOCON and SWM clocks
+	CLOCK_DisableClock(kCLOCK_Iocon);
+	CLOCK_DisableClock(kCLOCK_Swm);
+
+	// Switch to the external clock input
+	CLOCK_SetMainClkSrc(kCLOCK_MainClkSrcSysPllin);
+
+	__enable_irq();
+}
+
+//---------------------------------------------------------------------------------------------------------------------
 void Hal_Idle(void)
 {
 	// Idle-time processing (wait for interrupt/event)
@@ -144,7 +173,7 @@ bool Hal_NvWrite(const void* data, const uint8_t nv_page[64u])
 	}
 
 	// And write
-	if (kStatus_IAP_Success != IAP_CopyRamToFlash(addr, (uint32_t *) nv_page, HAL_NV_PAGE_SIZE, DEFAULT_SYSTEM_CLOCK))
+	if (kStatus_IAP_Success != IAP_CopyRamToFlash(addr, (uint32_t *) nv_page, HAL_NV_PAGE_SIZE, HAL_SYSTEM_CLOCK))
 	{
 		// Write failed
 		return false;

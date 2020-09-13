@@ -208,21 +208,9 @@ typedef struct {
 			struct
 			{
 				/**
-				 * @brief External clock source select
-				 *
-				 * Possible values:
-				 * \li 0 -  8 MHz CPU clock (from SYSPLL via IRC)
-				 *   Default clock path (PLL multiplies IRC by 2, SYSAHBCLKDIV divides by 3)
-				 *
-				 * \li 1 -  8 MHz CPU clock (provided via CLKIN)
-				 *   External clock path for testing (External 8 MHz clock provided in CLKIN pin)
-				 */
-				uint32_t EXT_CLK : 1;
-
-				/**
 				 * @brief Reserved for future use
 				 */
-				uint32_t RFU : 31;
+				uint32_t RFU : 32;
 			} bits;
 
 			/**
@@ -848,6 +836,10 @@ void CryptoMem_HandleCommand(void)
 
 	case 0xC0: // Increment counter
 		(void) CryptoMem_HandleIncrement();
+		break;
+
+	case 0xF2: // Switch the system's clock source
+		(void) CryptoMem_HandleSwitchToExtClock();
 		break;
 
 	case 0xFA: // ISP entry

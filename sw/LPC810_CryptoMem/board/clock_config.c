@@ -47,11 +47,11 @@ void BOARD_InitBootClocks(void)
 name: BOARD_BootClockRUN
 called_from_default_init: true
 outputs:
-- {id: I2C0_clock.outFreq, value: 30 MHz}
+- {id: I2C0_clock.outFreq, value: 8 MHz}
 - {id: LowPower_clock.outFreq, value: 10 kHz}
-- {id: SPI0_clock.outFreq, value: 30 MHz}
-- {id: SYSPLL_clock.outFreq, value: 60 MHz}
-- {id: System_clock.outFreq, value: 30 MHz, locked: true, accuracy: '0.001'}
+- {id: SPI0_clock.outFreq, value: 8 MHz}
+- {id: SYSPLL_clock.outFreq, value: 24 MHz}
+- {id: System_clock.outFreq, value: 8 MHz, locked: true, accuracy: '0.001'}
 - {id: divto750k_clock.outFreq, value: 750 kHz}
 settings:
 - {id: SYSCON.CLKOUTDIV.scale, value: '1'}
@@ -59,11 +59,11 @@ settings:
 - {id: SYSCON.DIV.scale, value: '256'}
 - {id: SYSCON.MAINCLKSEL.sel, value: SYSCON.PLL}
 - {id: SYSCON.MULT.scale, value: '256'}
-- {id: SYSCON.M_MULT.scale, value: '5'}
-- {id: SYSCON.SYSAHBCLKDIV.scale, value: '2'}
+- {id: SYSCON.M_MULT.scale, value: '2'}
+- {id: SYSCON.SYSAHBCLKDIV.scale, value: '3'}
 - {id: UARTFRGConfig, value: Enabled}
 sources:
-- {id: SYSCON.clk_in.outFreq, value: 4 MHz}
+- {id: SYSCON.clk_in.outFreq, value: 8 MHz}
 - {id: SYSCON.wwdt_osc.outFreq, value: 4 MHz}
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
 
@@ -83,12 +83,12 @@ void BOARD_BootClockRUN(void)
     CLOCK_Select(kSYSPLL_From_Irc);                         /*!< set IRC to pll select */
     clock_sys_pll_t config;
     config.src = kCLOCK_SysPllSrcIrc;                           /*!< set pll src  */
-    config.targetFreq = 60000000U;                     /*!< set pll target freq */
+    config.targetFreq = 24000000U;                     /*!< set pll target freq */
     CLOCK_InitSystemPll(&config);                           /*!< set parameters */
     CLOCK_SetMainClkSrc(kCLOCK_MainClkSrcSysPll);         /*!< select pll clock for main clock */
     CLOCK_Select(kCLKOUT_From_WdtOsc);                     /*!< select wwdt clock for CLKOUT */
     CLOCK_UpdateClkOUTsrc();                                   /*!< update CLKOUT src */
-    CLOCK_SetCoreSysClkDiv(2U);
+    CLOCK_SetCoreSysClkDiv(3U);
     /*!< Set SystemCoreClock variable. */
     SystemCoreClock = BOARD_BOOTCLOCKRUN_CORE_CLOCK;
 }

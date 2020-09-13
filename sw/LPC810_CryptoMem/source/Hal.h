@@ -16,7 +16,16 @@
 // Default system clock (8 MHz)
 #define HAL_SYSTEM_CLOCK UINT32_C(0x8000000)
 
-extern void Hal_Init(void);
+// Place a routine in the HAL initialization section
+//
+// Enabling CRP in the linker map interacts with link-time optimization. This results
+// in spurious .text section overflows, although we enough total flash space. To resolve
+// the situation we have to manually add tie-breakers (by explicitly placing some code
+// in the .after_vectors regions preceding the CRP marker word).
+//
+#define HAL_INIT_CODE __attribute__((__section__(".after_vectors.hal.init"), __noinline__))
+
+extern HAL_INIT_CODE void Hal_Init(void);
 extern void Hal_SwitchToExtClock(void);
 extern void Hal_Idle(void);
 extern __NO_RETURN void Hal_Halt(void);

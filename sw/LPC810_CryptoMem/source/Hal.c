@@ -19,17 +19,16 @@
 
 #include "LPC810.h"
 
-#if USE_CRP
-// Set Code Read Protection to CRP1 (No SWD) - as we use the SWD pins for our I2C interface
-//
-// This also deactivates read-back on the LPC810 (first 4K are guarded against readback). To reflash
-// we need to do a full device erase.
-#include <NXP/crp.h>
-__CRP const unsigned int CRP_WORD = CRP_NO_CRP /*CRP_CRP1*/;
-#endif
 
 //---------------------------------------------------------------------------------------------------------------------
-void Hal_Init(void)
+// Set Code Read Protection to CRP2 (No SWD, only full erase allowed before firmware update)
+//
+#include <NXP/crp.h>
+
+__CRP const unsigned int CRP_WORD = CRP_CRP2;
+
+//---------------------------------------------------------------------------------------------------------------------
+HAL_INIT_CODE void Hal_Init(void)
 {
 	// Disable the SWD interface pins (we need them as I2C pins)
 	CLOCK_EnableClock(kCLOCK_Swm);

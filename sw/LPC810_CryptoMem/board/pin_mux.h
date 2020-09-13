@@ -31,6 +31,28 @@ void BOARD_InitBootPins(void);
 /*!
  * @brief Open-drain mode.: Open-drain mode enabled. Remark: This is not a true open-drain mode. */
 #define PIO0_3_OD_ENABLED 0x01u
+/*!
+ * @brief Selects function mode (on-chip pull-up/pull-down resistor control).: Pull-up. Pull-up resistor enabled. */
+#define PIO0_4_MODE_PULL_UP 0x02u
+
+/*! @name PIO0_3 (number 3), SCL
+  @{ */
+#define BOARD_INITPINS_SCL_PORT 0U /*!<@brief PORT device index: 0 */
+#define BOARD_INITPINS_SCL_PIN 3U /*!<@brief PIO0 GPIO pin index: 3 */
+                                  /* @} */
+
+/*! @name PIO0_2 (number 4), SDA
+  @{ */
+#define BOARD_INITPINS_SDA_PORT 0U /*!<@brief PORT device index: 0 */
+#define BOARD_INITPINS_SDA_PIN 2U /*!<@brief PIO0 GPIO pin index: 2 */
+                                  /* @} */
+
+/*! @name PIO0_4 (number 2), RDY_N
+  @{ */
+#define BOARD_INITPINS_RDY_N_GPIO GPIO /*!<@brief GPIO device name: GPIO */
+#define BOARD_INITPINS_RDY_N_PORT 0U   /*!<@brief PORT device index: 0 */
+#define BOARD_INITPINS_RDY_N_PIN 4U    /*!<@brief PIO0 GPIO pin index: 4 */
+                                       /* @} */
 
 /*!
  * @brief Configures pin routing and optionally pin electrical features.

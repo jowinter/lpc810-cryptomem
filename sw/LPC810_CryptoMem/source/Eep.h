@@ -22,7 +22,7 @@ extern void Eep_I2CSetClockDivider(void);
 /**
  * @brief Starts the I2C slave interface.
  */
-extern void Eep_I2CStartSlave(void);
+extern void Eep_I2CStartSlave(const uint8_t i2c_addr);
 
 /**
  * @brief Stops the I2C slave interface.

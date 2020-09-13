@@ -61,7 +61,6 @@ typedef struct Eep_Slave
 static Eep_Slave_t gSlave;
 
 #define I2C_SLAVE_DEV       I2C0
-#define I2C_SLAVE_ADDR      0x20u
 #define I2C_SLAVE_IRQ_FLAGS (I2C_INTSTAT_SLVPENDING_MASK | I2C_INTSTAT_SLVDESEL_MASK)
 #define I2C_SLAVE_NVIC_IRQn I2C0_IRQn
 
@@ -88,7 +87,7 @@ void Eep_I2CSetClockDivider(void)
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void Eep_I2CStartSlave(void)
+void Eep_I2CStartSlave(const uint8_t i2c_addr)
 {
 	// Stop any ongoing slave activity
 	Eep_I2CStopSlave();
@@ -97,10 +96,10 @@ void Eep_I2CStartSlave(void)
 	I2C_SLAVE_DEV->INTENSET = I2C_SLAVE_IRQ_FLAGS;
 
 	// Set the slave address
-	I2C_SLAVE_DEV->SLVADR[0u] = I2C_SLVADR_SLVADR(I2C_SLAVE_ADDR) | I2C_SLVADR_SADISABLE(0);
-	I2C_SLAVE_DEV->SLVADR[1u] = I2C_SLVADR_SLVADR(0)              | I2C_SLVADR_SADISABLE(1);
-	I2C_SLAVE_DEV->SLVADR[2u] = I2C_SLVADR_SLVADR(0)              | I2C_SLVADR_SADISABLE(1);
-	I2C_SLAVE_DEV->SLVADR[3u] = I2C_SLVADR_SLVADR(0)              | I2C_SLVADR_SADISABLE(1);
+	I2C_SLAVE_DEV->SLVADR[0u] = I2C_SLVADR_SLVADR(i2c_addr) | I2C_SLVADR_SADISABLE(0);
+	I2C_SLAVE_DEV->SLVADR[1u] = I2C_SLVADR_SLVADR(0)        | I2C_SLVADR_SADISABLE(1);
+	I2C_SLAVE_DEV->SLVADR[2u] = I2C_SLVADR_SLVADR(0)        | I2C_SLVADR_SADISABLE(1);
+	I2C_SLAVE_DEV->SLVADR[3u] = I2C_SLVADR_SLVADR(0)        | I2C_SLVADR_SADISABLE(1);
 
 	// No qualifier for SLVADR0 (use SLVADR0 as-is)
 	I2C_SLAVE_DEV->SLVQUAL0   = I2C_SLVQUAL0_SLVQUAL0(0) | I2C_SLVQUAL0_QUALMODE0(0);

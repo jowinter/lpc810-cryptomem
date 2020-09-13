@@ -211,9 +211,14 @@ typedef struct {
 			struct
 			{
 				/**
+				 * @brief I2C slave address
+				 */
+				uint32_t I2C_ADDR : 7;
+
+				/**
 				 * @brief Reserved for future use
 				 */
-				uint32_t RFU : 32;
+				uint32_t RFU : 25;
 			} bits;
 
 			/**
@@ -277,7 +282,8 @@ HAL_NV_DATA const CryptoMem_Nv_t gNv =
 			{
 					.bits =
 					{
-						.RFU = 0u
+						.I2C_ADDR = 0x20,
+						.RFU      = 0u
 					}
 			},
 
@@ -927,7 +933,7 @@ int main(void)
 	CryptoMem_Init();
 
 	// Finally start the I2C slave (after this point commands can be received at any time)
-  	Eep_I2CStartSlave();
+  	Eep_I2CStartSlave(gNv.page0.NV_SYS_CFG.bits.I2C_ADDR);
 
   	while (true)
   	{

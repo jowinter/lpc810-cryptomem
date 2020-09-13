@@ -13,6 +13,7 @@
 
 #include "fsl_swm.h"
 #include "fsl_iap.h"
+#include "fsl_gpio.h"
 
 #include "LPC810.h"
 
@@ -52,14 +53,18 @@ void Hal_Idle(void)
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-__attribute__((__noreturn__))
-void Hal_Halt(void)
+__NO_RETURN void Hal_Halt(void)
 {
 	// Interrupts off
 	__disable_irq();
 
 	// Stop the I2C slave interface
 	Eep_I2CStopSlave();
+
+	// Signal an error
+	Hal_SetReadyPin(false);
+
+	// NOTE: At this point the WWDT interrupt is blocked. We will (eventually) run into a WDT timeout (and reset).
 
 	// Now sleep forever
 	while (true)
@@ -128,6 +133,13 @@ bool Hal_NvWrite(const void* data, const uint8_t nv_page[64u])
 	}
 
 	return true;
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+void Hal_SetReadyPin(bool ready)
+{
+	GPIO_PinWrite(BOARD_INITPINS_RDY_N_GPIO, BOARD_INITPINS_RDY_N_PORT, BOARD_INITPINS_RDY_N_PIN, ready ? 0u : 1u);
+
 }
 
 //---------------------------------------------------------------------------------------------------------------------

@@ -15,7 +15,9 @@
 
 extern void Hal_Init(void);
 extern void Hal_Idle(void);
-extern __attribute__((__noreturn__)) void Hal_Halt(void);
+extern __NO_RETURN void Hal_Halt(void);
+
+extern void Hal_SetReadyPin(bool ready);
 
 extern void Hal_ReadDeviceID(uint32_t device_id[4]);
 extern void Hal_EnterBootloader(uint32_t *const isp_error);

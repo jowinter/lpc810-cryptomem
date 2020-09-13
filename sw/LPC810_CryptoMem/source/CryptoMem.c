@@ -656,12 +656,18 @@ int main(void)
 
   	while (true)
   	{
+  		// Signal that we are ready
+  		Hal_SetReadyPin(true);
+
   		// Sleep while no command is active
   		while (!gCommandActive)
   		{
   			// System is idle (wait for interrupt)
   			Hal_Idle();
   		}
+
+  		// Command processing starts
+  		Hal_SetReadyPin(false);
 
   		// We now have an active command
   		CryptoMem_HandleCommand();

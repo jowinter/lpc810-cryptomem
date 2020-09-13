@@ -38,7 +38,7 @@
 // ------+------------+------------+------------+------------+------------+------------+------------+------------+
 // 0x068 | RFU (WI/RAZ)                                                                                          |
 // ------+------------+------------+------------+------------+------------+------------+------------+------------+
-// 0x070 |                                                                                                       |
+// 0x070 | USER_DATA[255:0]                                                                                      |
 // 0x078 |                                                                                                       |
 // 0x080 |                                                                                                       |
 // 0x088 |                                                                                                       |
@@ -119,7 +119,9 @@ typedef union {
 
 		uint32_t VOLATILE_COUNTER[2u];
 
-		uint8_t RFU[40u];
+		uint8_t RFU[8u];
+
+		uint8_t USER_DATA[32u];
 
 		uint8_t PCR[3u][SHA256_HASH_LENGTH_BYTES];
 
@@ -174,11 +176,12 @@ _Static_assert(sizeof(gIoMem.regs) == 256u, "Size of  I/O register structure (bi
 // 0x030 |                                                                                                       |
 // 0x038 |                                                                                                       |
 // ======+============+============+============+============+============+============+============+============+
-// 0x044 |                                                                                                       |
+// 0x044 | NV_USER_DATA[255:0]                                                                                   |
 // 0x048 |                                                                                                       |
 // 0x050 |                                                                                                       |
 // 0x058 |                                                                                                       |
-// 0x060 |                                                                                                       |
+// ------+------------+------------+------------+------------+------------+------------+------------+------------+
+// 0x060 | NV_USER_AUTH[255:0]                                                                                   |
 // 0x068 |                                                                                                       |
 // 0x070 |                                                                                                       |
 // 0x078 |                                                                                                       |
@@ -250,7 +253,15 @@ typedef struct {
 	 */
 	struct
 	{
-		uint8_t RFU[64u];
+		/**
+		 * @brief NV user data stored on the device.
+		 */
+		uint8_t NV_USER_DATA[32u];
+
+		/**
+		 * @brief SHA-256 hash of the write password for the NV user data.
+		 */
+		uint8_t NV_USER_AUTH[32u];
 	} page1;
 } CryptoMem_Nv_t;
 
@@ -266,8 +277,7 @@ HAL_NV_DATA const CryptoMem_Nv_t gNv =
 			{
 					.bits =
 					{
-						// Default to internal clocking
-						.EXT_CLK = 0u
+						.RFU = 0u
 					}
 			},
 
@@ -292,9 +302,18 @@ HAL_NV_DATA const CryptoMem_Nv_t gNv =
 
 	.page1 =
 	{
-			.RFU =
+			.NV_USER_DATA =
 			{
-					0x00i
+					0x64u, 0x6fu, 0x6eu, 0x27u, 0x74u, 0x20u, 0x66u, 0x65u, 0x65u, 0x64u, 0x20u, 0x74u, 0x68u, 0x65u, 0x20u, 0x62u, //  |don't feed the b|
+					0x75u, 0x67u, 0x73u, 0x21u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u  //  |ugs.............|
+			},
+
+			// Default: SHA-256 hash of 32 zero bytes
+			.NV_USER_AUTH =
+			{
+					0x66u, 0x68u, 0x7au, 0xadu, 0xf8u, 0x62u, 0xbdu, 0x77u, 0x6cu, 0x8fu, 0xc1u, 0x8bu, 0x8eu, 0x9fu, 0x8eu, 0x20u,
+					0x08u, 0x97u, 0x14u, 0x85u, 0x6eu, 0xe2u, 0x33u, 0xb3u, 0x90u, 0x2au, 0x59u, 0x1du, 0x0du, 0x5fu, 0x29u, 0x25u
+
 			}
 	}
 };
@@ -313,8 +332,7 @@ static bool CryptoMem_IsDeviceUnlocked(void)
 
 
 //---------------------------------------------------------------------------------------------------------------------
-static void CryptoMem_DeriveDeviceKey(uint8_t key[SHA256_HASH_LENGTH_BYTES], const uint8_t seed[8u],
-		const uint8_t type[4u], const uint32_t index)
+static void CryptoMem_DeriveDeviceKey(uint8_t key[SHA256_HASH_LENGTH_BYTES], const uint8_t seed[8u], const uint8_t type[4u])
 {
 	// First derive the device-specific key
 	//  key = HMAC_{ROOT_KEY} ( type || seed )
@@ -323,21 +341,20 @@ static void CryptoMem_DeriveDeviceKey(uint8_t key[SHA256_HASH_LENGTH_BYTES], con
 	__UNALIGNED_UINT32_WRITE(&key[ 0u], __UNALIGNED_UINT32_READ(&seed[0u]));
 	__UNALIGNED_UINT32_WRITE(&key[ 4u], __UNALIGNED_UINT32_READ(&seed[4u]));
 	__UNALIGNED_UINT32_WRITE(&key[ 8u], __UNALIGNED_UINT32_READ(&type[0u]));
-	__UNALIGNED_UINT32_WRITE(&key[12u], __REV(index));
 
 	// Derive the key (via HMAC)
 	Sha256_HmacInit(gNv.page0.ROOT_KEY, sizeof(gNv.page0.ROOT_KEY));
-	Sha256_HmacUpdate(key, 16u);
+	Sha256_HmacUpdate(key, 8u + 4u);
 	Sha256_HmacFinal(key);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-static void CryptoMem_HmacInitFromDeviceKey(const uint8_t seed[8u], const uint8_t type[4u], const uint32_t index)
+static void CryptoMem_HmacInitFromDeviceKey(const uint8_t seed[8u], const uint8_t type[4u])
 {
 	uint8_t key[SHA256_HASH_LENGTH_BYTES];
 
 	// Derive the device specific key
-	CryptoMem_DeriveDeviceKey(key, seed, type, index);
+	CryptoMem_DeriveDeviceKey(key, seed, type);
 
 	// Next initialize the HMAC
 	Sha256_HmacInit(key, SHA256_HASH_LENGTH_BYTES);
@@ -349,31 +366,16 @@ static void CryptoMem_HmacInitFromDeviceKey(const uint8_t seed[8u], const uint8_
 //---------------------------------------------------------------------------------------------------------------------
 uint8_t Eep_ByteReadCallback(uint8_t address)
 {
-	// We always allow read access to the IO memory area
-	switch (address)
+	if (address <= IOMEM_REG_OFF(STAT))
 	{
-	case IOMEM_REG_OFF(STAT):
-		// We always report report IOMEM_STAT_BUSY if there is an active command
-		return gCommandActive ?	IOMEM_STAT_BUSY : gIoMem.raw[address];
-
-	default:
-		// Block reads below ARG_0 if there is a pending command
-		//
-		// (DATA may be used as scratchpad by the command handler)
-		//
-		// Updates to the
-		if (address < IOMEM_REG_OFF(ARG_0))
+		// Addresses less or equal to the state register read as IOMEM_STAT_BUSY (0xFF) while a command is ongoing
+		if (gCommandActive)
 		{
-			if (gCommandActive)
-			{
-				return UINT8_C(0);
-			}
-
+			return UINT8_C(0xFF);
 		}
-
-		// Allow the read (no command pending)
-		return gIoMem.raw[address];
 	}
+
+	return gIoMem.raw[address];
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -459,6 +461,9 @@ void CryptoMem_Init(void)
 	// Initialize the lockable bits from NV
 	gIoMem.regs.VOLATILE_BITS  = gNv.page0.NV_VOLATILE_BITS_INIT;
 	gIoMem.regs.VOLATILE_LOCKS = gNv.page0.NV_VOLATILE_LOCKS_INIT;
+
+	// Copy user data from NV
+	__builtin_memcpy(&gIoMem.regs.USER_DATA[0u], &gNv.page1.NV_USER_DATA[0u], sizeof(gIoMem.regs.USER_DATA));
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -567,7 +572,7 @@ static uint8_t CryptoMem_HandleQuote(void)
 	}
 
 	// Quote as HMAC over the PCRs (and extra data - if needed)
-	CryptoMem_HmacInitFromDeviceKey(&gNv.page0.QUOTE_KEY_SEED[0u], kTag_Quote, 0u);
+	CryptoMem_HmacInitFromDeviceKey(&gNv.page0.QUOTE_KEY_SEED[0u], kTag_Quote);
 
 	// "quot" marker, pcr mask and head data
 	{
@@ -671,7 +676,7 @@ static uint8_t CryptoMem_HandleHmacKeyDerivation(void)
 	}
 
 	// Initialize the HMAC engine with the derivation key
-	CryptoMem_HmacInitFromDeviceKey(&gNv.page0.HKDF_KEY_SEED[0u], kTag_HmacKdf, 0u);
+	CryptoMem_HmacInitFromDeviceKey(&gNv.page0.HKDF_KEY_SEED[0u], kTag_HmacKdf);
 
 	// Derive the key as:
 	//
@@ -726,48 +731,20 @@ static uint8_t CryptoMem_HandleIncrement(void)
 
 //---------------------------------------------------------------------------------------------------------------------
 //
-// Command: 0xFA - Enter Field Update Mode (ISP Entry)
-//
-// This command is only available while the device is in unlocked state.
-//
-// Input:
-//     ARG_0: Should be 0x69 ('i')
-//     ARG_1: Should be 0x73 ('s')
-//     ARG_2: Should be 0x70 ('p')
-//
-// Output:
-//     RET_0: Return code from command
-//          (Command does not return on success)
-//          0xE5 - Command not allowed in this device state
-//
-//  RET_1: Reserved (set to zero)
-//
-
-static uint8_t CryptoMem_HandleFieldUpdate(void)
-{
-	if (CryptoMem_IsDeviceUnlocked())
-	{
-		// Enter ISP mode (only returns on failure)
-		Hal_EnterBootloader();
-
-		// Unreachable
-		__builtin_unreachable();
-	}
-	else
-	{
-		// No maintenance allowed
-		return CryptoMem_FinishCommand(0xE5u);
-	}
-}
-
-//---------------------------------------------------------------------------------------------------------------------
-//
 // Command: 0xF1 - Write to NV memory
 //
 // This command is only available while the device is in unlocked state.
 //
 // Input:
-//     ARG_0: Unused (must be zero)
+//     ARG_0: NV slot index to write:
+//              0x2A - User data area (NV_USER_DATA)
+//                     DATA[127:  0] holds the user data
+//                     DATA[255:128] holds the preimage for the write
+//
+//                     Authentication via SHA-256
+//
+//              0x5C - Device configuration (requires unlocked device)
+//
 //     ARG_1: Unused (must be zero)
 //
 //     DATA[0x00..0x3F]: Data to be written on the NV config page
@@ -784,26 +761,113 @@ static uint8_t CryptoMem_HandleFieldUpdate(void)
 
 static uint8_t CryptoMem_HandleNvWrite(void)
 {
-	if ((gIoMem.regs.ARG_0 != 0u) || (gIoMem.regs.ARG_1 != 0u))
+	const uint8_t nv_index = gIoMem.regs.ARG_0;
+	if (gIoMem.regs.ARG_1 != 0u)
 	{
 		return CryptoMem_FinishCommand(0xE1u);
 	}
 
-	if (CryptoMem_IsDeviceUnlocked())
+	if (nv_index == 0x5Cu)
 	{
-		// Write to the flash
-		if (!Hal_NvWrite(&gNv, &gIoMem.regs.DATA[0u]))
+		// Write to maintenance area
+		if (CryptoMem_IsDeviceUnlocked())
 		{
-			return CryptoMem_FinishCommand(0xE4);
-		}
+			// Write to the flash
+			if (!Hal_NvWrite(&gNv.page0, &gIoMem.regs.DATA[0u]))
+			{
+				return CryptoMem_FinishCommand(0xE4);
+			}
 
-		return CryptoMem_FinishCommand(0x00u);
+			return CryptoMem_FinishCommand(0x00u);
+		}
+		else
+		{
+			// No maintenance allowed
+			return CryptoMem_FinishCommand(0xE5u);
+		}
+	}
+	else if (nv_index == 0x2Au)
+	{
+		// Write to user data area
+
+		// Hash the provided user password
+		Sha256_Init();
+		Sha256_Update(&gIoMem.regs.DATA[32u], SHA256_HASH_LENGTH_BYTES);
+		Sha256_Final(&gIoMem.regs.DATA[32u]);
+
+		// Allow write on password match, or if the device is in unlocked mode
+		if (0u == __builtin_memcmp(&gIoMem.regs.DATA[32u], &gNv.page1.NV_USER_AUTH[0u], SHA256_HASH_LENGTH_BYTES))
+		{
+			// Write to the flash
+			if (!Hal_NvWrite(&gNv.page1, &gIoMem.regs.DATA[0u]))
+			{
+				return CryptoMem_FinishCommand(0xE4);
+			}
+
+			// Reload the RAM mirror of the user data area
+			__builtin_memcpy(&gIoMem.regs.USER_DATA[0], &gNv.page1.NV_USER_DATA[0u], sizeof(gIoMem.regs.USER_DATA));
+
+			return CryptoMem_FinishCommand(0x00u);
+		}
+		else
+		{
+			// No maintenance allowed
+			return CryptoMem_FinishCommand(0xE5u);
+		}
+	}
+	else if (nv_index == 0xFAu)
+	{
+		// Entry to field update mode
+		if (CryptoMem_IsDeviceUnlocked())
+		{
+			// Enter ISP mode (only returns on failure)
+			Hal_EnterBootloader();
+
+			// Unreachable
+			__builtin_unreachable();
+		}
+		else
+		{
+			// No maintenance allowed
+			return CryptoMem_FinishCommand(0xE5u);
+		}
 	}
 	else
 	{
-		// No maintenance allowed
-		return CryptoMem_FinishCommand(0xE5u);
+		// Bad NV index
+		return CryptoMem_FinishCommand(0xE1u);
 	}
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+//
+// Command: 0xF2 - Switch to external clock.
+//
+// This command switches the system's clock source to an external 8 MHz clock provided on the CLKIN pin. The system
+// device on the external clock until the next hardware reset.
+//
+// Input:
+//     ARG_0: Unused (msut be zero)
+//
+//     ARG_1: Unused (must be zero)
+//
+// Output:
+//     RET_0: Return code from command
+//          0x00 - Success
+//
+//     RET_1: Reserved (set to zero)
+//
+static uint8_t CryptoMem_HandleSwitchToExtClock(void)
+{
+	if ((gIoMem.regs.ARG_0 != 0) && (gIoMem.regs.ARG_1 != 0u))
+	{
+		return CryptoMem_FinishCommand(0xE1u);
+	}
+
+	// Switch to external clocking
+	Hal_SwitchToExtClock();
+
+	return CryptoMem_FinishCommand(0x00u);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -838,16 +902,12 @@ void CryptoMem_HandleCommand(void)
 		(void) CryptoMem_HandleIncrement();
 		break;
 
+	case 0xF1: // Write our NV flash configuration
+		(void) CryptoMem_HandleNvWrite();
+		break;
+
 	case 0xF2: // Switch the system's clock source
 		(void) CryptoMem_HandleSwitchToExtClock();
-		break;
-
-	case 0xFA: // ISP entry
-		(void) CryptoMem_HandleFieldUpdate();
-		break;
-
-	case 0xF5: // Write our NV flash configuration
-		(void) CryptoMem_HandleNvWrite();
 		break;
 
 	default:

@@ -144,8 +144,9 @@ bool Hal_NvWrite(const void* data, const uint8_t nv_page[64u])
 	}
 
 	// And write
-	if (kStatus_IAP_Success != IAP_CopyRamToFlash(addr, (uint32_t *) nv_page, HAL_NV_PAGE_SIZE, BOARD_BOOTCLOCKRUN_CORE_CLOCK))
+	if (kStatus_IAP_Success != IAP_CopyRamToFlash(addr, (uint32_t *) nv_page, HAL_NV_PAGE_SIZE, DEFAULT_SYSTEM_CLOCK))
 	{
+		// Write failed
 		return false;
 	}
 

@@ -162,7 +162,7 @@
             <component name="system" uuid="f2020f0b-2096-4345-b1aa-e53dd0a53fec" type_id="system_54b53072540eeeb8f8e9343e71f28176">
                <config_set_global name="global_system_definitions"/>
             </component>
-            <component name="msg" uuid="8e7ff1f2-4173-47fc-aaab-e406e2755caa" type_id="msg_6e2baaf3b97dbeef01c0043275f9a0e7">
+            <component name="msg" uuid="31cda3f6-3477-4e5a-b5f6-8bc60e485736" type_id="msg_6e2baaf3b97dbeef01c0043275f9a0e7">
                <config_set_global name="global_messages"/>
             </component>
          </components>

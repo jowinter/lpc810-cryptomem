@@ -137,6 +137,11 @@ typedef union {
 static CryptoMem_IoMem_t gIoMem;
 
 /**
+ * @brief Response data length of the current command.
+ */
+static uint32_t gResponseLength;
+
+/**
  * @brief Mutex for the I/O memory structure
  *
  * Write access to the I/O memory structure (from the EEP write callback) is only allowed when no command
@@ -474,10 +479,11 @@ void CryptoMem_Init(void)
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-static uint8_t CryptoMem_FinishCommandWithData(uint8_t result, size_t size)
+static void CryptoMem_CompleteCommandWithData(uint8_t result)
 {
 	// Clear the data area
-	__builtin_memset(&gIoMem.regs.DATA[0] + size, 0, sizeof(gIoMem.regs.DATA) - size);
+	__builtin_memset(&gIoMem.regs.DATA[0] + gResponseLength, 0, sizeof(gIoMem.regs.DATA) - gResponseLength);
+	gResponseLength = 0u;
 
 	// Clear the command
 	gIoMem.regs.CMD = 0u;
@@ -496,16 +502,13 @@ static uint8_t CryptoMem_FinishCommandWithData(uint8_t result, size_t size)
 	__DMB();
 
 	gCommandActive = false;
-
-	return result;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-static uint8_t CryptoMem_FinishCommand(uint8_t result)
+static void CryptoMem_SetResponseLength(uint32_t length)
 {
-	return CryptoMem_FinishCommandWithData(result, 0u);
+	gResponseLength = length;
 }
-
 
 //---------------------------------------------------------------------------------------------------------------------
 //
@@ -532,7 +535,7 @@ static uint8_t CryptoMem_HandleExtend(void)
 	if ((pcr_index > 2) || (extend_len > sizeof(gIoMem.regs.DATA)))
 	{
 		// Parameter error
-		return CryptoMem_FinishCommand(0xE1u);
+		return 0xE1u;
 	}
 
 	// Compute the new PCR value
@@ -541,7 +544,7 @@ static uint8_t CryptoMem_HandleExtend(void)
 	Sha256_Update(&gIoMem.regs.DATA[0], extend_len);
 	Sha256_Final(&gIoMem.regs.PCR[pcr_index][0]);
 
-	return CryptoMem_FinishCommand(0x00u);
+	return 0x00u;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -575,7 +578,7 @@ static uint8_t CryptoMem_HandleQuote(void)
 	if (extend_len > sizeof(gIoMem.regs.DATA))
 	{
 		// Parameter error
-		return CryptoMem_FinishCommand(0xE1u);
+		return 0xE1u;
 	}
 
 	// Quote as HMAC over the PCRs (and extra data - if needed)
@@ -650,7 +653,8 @@ static uint8_t CryptoMem_HandleQuote(void)
 		Sha256_Final(&gIoMem.regs.PCR[0u][0u]);
 	}
 
-	return CryptoMem_FinishCommandWithData(0x00u, SHA256_HASH_LENGTH_BYTES);
+	CryptoMem_SetResponseLength(SHA256_HASH_LENGTH_BYTES);
+	return 0x00u;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -658,7 +662,7 @@ static uint8_t CryptoMem_HandleQuote(void)
 // Command: 0xB0 - HMAC Key Derivation
 //   Input:
 //     ARG_0: Length of user KDF seed data (0-80 bytes)
-//     ARG_1: Unused
+//     ARG_1: Reserved (ignored; should be zero)
 //
 //     DATA: Seed input for key derivation
 //
@@ -676,10 +680,10 @@ static uint8_t CryptoMem_HandleHmacKeyDerivation(void)
 {
 	const uint8_t seed_len = gIoMem.regs.ARG_0;
 
-	if ((seed_len > sizeof(gIoMem.regs.DATA)) || (0u != gIoMem.regs.ARG_1))
+	if (seed_len > sizeof(gIoMem.regs.DATA))
 	{
 		// Parameter error
-		return CryptoMem_FinishCommand(0xE1u);
+		return 0xE1u;
 	}
 
 	// Initialize the HMAC engine with the derivation key
@@ -693,7 +697,8 @@ static uint8_t CryptoMem_HandleHmacKeyDerivation(void)
 	Sha256_HmacFinal(&gIoMem.regs.DATA[0u]);
 
 	// Return the derived key
-	return CryptoMem_FinishCommandWithData(0x00u, SHA256_HASH_LENGTH_BYTES);
+	CryptoMem_SetResponseLength(SHA256_HASH_LENGTH_BYTES);
+	return 0x00u;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -720,7 +725,7 @@ static uint8_t CryptoMem_HandleIncrement(void)
 	if (counter_index > 1u)
 	{
 		// Parameter error
-		return CryptoMem_FinishCommand(0xE1u);
+		return 0xE1u;
 	}
 
 	// Increment the counter
@@ -728,10 +733,13 @@ static uint8_t CryptoMem_HandleIncrement(void)
 	if ((UINT32_MAX - old_value) < increment)
 	{
 		// Counter overflow
-		return CryptoMem_FinishCommand(0xE3u);
+		return 0xE3u;
 	}
 
 	gIoMem.regs.VOLATILE_COUNTER[counter_index] = old_value + increment;
+	return 0x00u;
+}
+
 
 	return CryptoMem_FinishCommand(0x00u);
 }
@@ -759,7 +767,7 @@ static uint8_t CryptoMem_HandleIncrement(void)
 // Output:
 //     RET_0: Return code from command
 //          0x00 - Success
-//          0xE1 - Parameter error
+//          0xE1 - Parameter error (bad nv index)
 //          0xE4 - Command execution failed
 //          0xE5 - Command not allowed in this device state
 //
@@ -769,10 +777,6 @@ static uint8_t CryptoMem_HandleIncrement(void)
 static uint8_t CryptoMem_HandleNvWrite(void)
 {
 	const uint8_t nv_index = gIoMem.regs.ARG_0;
-	if (gIoMem.regs.ARG_1 != 0u)
-	{
-		return CryptoMem_FinishCommand(0xE1u);
-	}
 
 	if (nv_index == 0x5Cu)
 	{
@@ -782,15 +786,11 @@ static uint8_t CryptoMem_HandleNvWrite(void)
 			// Write to the flash
 			if (!Hal_NvWrite(&gNv.page0, &gIoMem.regs.DATA[0u]))
 			{
-				return CryptoMem_FinishCommand(0xE4);
+				return 0xE4;
 			}
 
-			return CryptoMem_FinishCommand(0x00u);
-		}
-		else
-		{
-			// No maintenance allowed
-			return CryptoMem_FinishCommand(0xE5u);
+			// Maintenance operation is done
+			return 0x00u;
 		}
 	}
 	else if (nv_index == 0x2Au)
@@ -818,8 +818,8 @@ static uint8_t CryptoMem_HandleNvWrite(void)
 		}
 		else
 		{
-			// No maintenance allowed
-			return CryptoMem_FinishCommand(0xE5u);
+			// Maintenance operation is done
+			return 0x00u;
 		}
 	}
 	else if (nv_index == 0xFAu)
@@ -833,17 +833,15 @@ static uint8_t CryptoMem_HandleNvWrite(void)
 			// Unreachable
 			__builtin_unreachable();
 		}
-		else
-		{
-			// No maintenance allowed
-			return CryptoMem_FinishCommand(0xE5u);
-		}
 	}
 	else
 	{
-		// Bad NV index
-		return CryptoMem_FinishCommand(0xE1u);
+		// Invalid NV index
+		return 0xE1u;
 	}
+
+	// No maintenance allowed
+	return 0xE5u;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -854,9 +852,8 @@ static uint8_t CryptoMem_HandleNvWrite(void)
 // device on the external clock until the next hardware reset.
 //
 // Input:
-//     ARG_0: Unused (msut be zero)
-//
-//     ARG_1: Unused (must be zero)
+//     ARG_0: Reserved (ignored; should be zero)
+//     ARG_1: Reserved (ignored; should be zero)
 //
 // Output:
 //     RET_0: Return code from command
@@ -866,62 +863,65 @@ static uint8_t CryptoMem_HandleNvWrite(void)
 //
 static uint8_t CryptoMem_HandleSwitchToExtClock(void)
 {
-	if ((gIoMem.regs.ARG_0 != 0) && (gIoMem.regs.ARG_1 != 0u))
-	{
-		return CryptoMem_FinishCommand(0xE1u);
-	}
-
 	// Switch to external clocking
 	Hal_SwitchToExtClock();
 
-	return CryptoMem_FinishCommand(0x00u);
+	return 0x00u;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
 static uint8_t CryptoMem_HandleNop(void)
 {
-	return CryptoMem_FinishCommand(0x00u);
+	return 0x00u;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
 void CryptoMem_HandleCommand(void)
 {
+	uint8_t status;
+
+	// Assume zero response length
+	CryptoMem_SetResponseLength(0u);
+
 	// Dispatch the command
 	switch (gIoMem.regs.CMD)
 	{
 	case 0x00u: // No operation
-		(void) CryptoMem_HandleNop();
+		status = CryptoMem_HandleNop();
 		break;
 
 	case 0xA0u: // Quote
-		(void) CryptoMem_HandleQuote();
+		status = CryptoMem_HandleQuote();
 		break;
 
 	case 0xB0u:  // HMAC Key Derivarion
-		(void) CryptoMem_HandleHmacKeyDerivation();
+		status = CryptoMem_HandleHmacKeyDerivation();
 		break;
 
 	case 0xE0u: // Extend PCR
-		(void) CryptoMem_HandleExtend();
+		status = CryptoMem_HandleExtend();
 		break;
 
 	case 0xC0: // Increment counter
-		(void) CryptoMem_HandleIncrement();
+		status = CryptoMem_HandleIncrement();
 		break;
 
 	case 0xF1: // Write our NV flash configuration
-		(void) CryptoMem_HandleNvWrite();
+		status = CryptoMem_HandleNvWrite();
 		break;
 
 	case 0xF2: // Switch the system's clock source
-		(void) CryptoMem_HandleSwitchToExtClock();
+		status = CryptoMem_HandleSwitchToExtClock();
 		break;
 
 	default:
 		// Unknown command
-		(void) CryptoMem_FinishCommand(0xE2u);
+		status = 0xE2u;
 		break;
 	}
+
+	// Complete the command and setup the respone transfer
+	CryptoMem_CompleteCommandWithData(status);
 }
 
 //---------------------------------------------------------------------------------------------------------------------

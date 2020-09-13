@@ -156,40 +156,207 @@ _Static_assert(sizeof(gIoMem.regs) == 256u, "Size of  I/O register structure (bi
 
 
 //---------------------------------------------------------------------------------------------------------------------
+
+//---------------------------------------------------------------------------------------------------------------------
+//
+//       |         +7 |         +6 |         +5 |         +4 |         +3 |         +2 |         +1 |         +0 |
+// ======+============+============+============+============+============+============+============+============+
+// 0x000 | NV_SYS_CFG[31:0]                                  | NV_UNLOCK_MARKER[31:0]                            |
+// ------+------------+------------+------------+------------+------------+------------+------------+------------+
+// 0x008 | NV_VOLATILE_LOCKS_INIT[31:0]                      | NV_VOLATILE_BITS_INIT[31:0]                       |
+// ------+------------+------------+------------+------------+------------+------------+------------+------------+
+// 0x010 | HKDF_KEY_SEED[63:0]                                                                                   |
+// ------+------------+------------+------------+------------+------------+------------+------------+------------+
+// 0x018 | QUOTE_KEY_SEED[63:0]                                                                                  |
+// ------+------------+------------+------------+------------+------------+------------+------------+------------+
+// 0x020 | ROOT_KEY[255:0]                                                                                       |
+// 0x028 |                                                                                                       |
+// 0x030 |                                                                                                       |
+// 0x038 |                                                                                                       |
+// ======+============+============+============+============+============+============+============+============+
+// 0x044 |                                                                                                       |
+// 0x048 |                                                                                                       |
+// 0x050 |                                                                                                       |
+// 0x058 |                                                                                                       |
+// 0x060 |                                                                                                       |
+// 0x068 |                                                                                                       |
+// 0x070 |                                                                                                       |
+// 0x078 |                                                                                                       |
+// ======+============+============+============+============+============+============+============+============+
+
 /**
  * NV memory
  */
-typedef union {
+typedef struct {
+	/**
+	 * @brief Page zero
+	 */
 	struct {
 		/**
 		 * @brief NV valid marker
 		 */
-		volatile uint32_t marker;
+		volatile uint32_t NV_UNLOCK_MARKER;
 
-		uint8_t rfu[28u];
+		/**
+		 *  @brief System Configuration
+		 */
+		union
+		{
+			/**
+			 * @brief Bit-field view.
+			 */
+			struct
+			{
+				/**
+				 * @brief External clock source select
+				 *
+				 * Possible values:
+				 * \li 0 -  8 MHz CPU clock (from SYSPLL via IRC)
+				 *   Default clock path (PLL multiplies IRC by 2, SYSAHBCLKDIV divides by 3)
+				 *
+				 * \li 1 -  8 MHz CPU clock (provided via CLKIN)
+				 *   External clock path for testing (External 8 MHz clock provided in CLKIN pin)
+				 */
+				uint32_t EXT_CLK : 1;
+
+				/**
+				 * @brief Reserved for future use
+				 */
+				uint32_t RFU : 31;
+			} bits;
+
+			/**
+			 * @brief Raw value of the system config
+			 */
+			uint32_t raw;
+		} NV_SYS_CFG;
+
+		/**
+		 * @brief Initial value for the lockable bits.
+		 */
+		uint32_t NV_VOLATILE_BITS_INIT;
+
+		/**
+		 * @brief Initial lock status for the lockable bits-
+		 */
+		uint32_t NV_VOLATILE_LOCKS_INIT;
+
+		/**
+		 * @brief Seed for storage key derivation (from the root key)
+		 */
+		uint8_t HKDF_KEY_SEED[8u];
+
+		/**
+		 * @brief Seed for quote key derivation (from the quote key)
+		 */
+		uint8_t QUOTE_KEY_SEED[8u];
 
 		/**
 		 * @brief Device Root Key
 		 */
-		uint8_t root_key[32u];
-	} fields;
+		uint8_t ROOT_KEY[32u];
+	} page0;
 
-	uint8_t raw[64u];
+	/**
+	 * @brief Page one
+	 */
+	struct
+	{
+		uint8_t RFU[64u];
+	} page1;
 } CryptoMem_Nv_t;
 
 HAL_NV_DATA const CryptoMem_Nv_t gNv =
 {
-	.fields =
+	.page0 =
 	{
-			.marker = UINT32_C(0xAACCEE55),
+			.NV_UNLOCK_MARKER       = UINT32_C(0xAACCEE55),
+			.NV_VOLATILE_BITS_INIT  = UINT32_C(0x00000000),
+			.NV_VOLATILE_LOCKS_INIT = UINT32_C(0x00000000),
 
-			.root_key = "don't feed the bugs!"
+			.NV_SYS_CFG =
+			{
+					.bits =
+					{
+						// Default to internal clocking
+						.EXT_CLK = 0u
+					}
+			},
+
+			.HKDF_KEY_SEED =
+			{
+					0xC3u, 0xC3u, 0xC3u, 0xC3u, 0xC3u, 0xC3u, 0xC3u, 0xC3u
+			},
+
+			.QUOTE_KEY_SEED =
+			{
+					0x3Cu, 0x3Cu, 0x3Cu, 0x3Cu, 0x3Cu, 0x3Cu, 0x3Cu, 0x3Cu
+			},
+
+			.ROOT_KEY =
+			{
+					0xA5u, 0xA5u, 0xA5u, 0xA5u, 0xA5u, 0xA5u, 0xA5u, 0xA5u,
+					0xA5u, 0xA5u, 0xA5u, 0xA5u, 0xA5u, 0xA5u, 0xA5u, 0xA5u,
+					0xA5u, 0xA5u, 0xA5u, 0xA5u, 0xA5u, 0xA5u, 0xA5u, 0xA5u,
+					0xA5u, 0xA5u, 0xA5u, 0xA5u, 0xA5u, 0xA5u, 0xA5u, 0xA5u
+			}
+	},
+
+	.page1 =
+	{
+			.RFU =
+			{
+					0x00i
+			}
 	}
 };
 
-_Static_assert(sizeof(gIoMem.raw) == 256u, "Size of I/O register structure (raw view) must be exactly 256 bytes.");
-_Static_assert(sizeof(gIoMem.regs) == 256u, "Size of  I/O register structure (bitfield view) must be exactly 256 bytes.");
+_Static_assert(sizeof(gNv) == 128u, "Size of I/O register structure (raw view) must be exactly 128 bytes.");
 
+//---------------------------------------------------------------------------------------------------------------------
+static const uint8_t kTag_Quote[4u]    = "QUOT";
+static const uint8_t kTag_HmacKdf[4u]  = "HKDF";
+
+//---------------------------------------------------------------------------------------------------------------------
+static bool CryptoMem_IsDeviceUnlocked(void)
+{
+	return (gNv.page0.NV_UNLOCK_MARKER == UINT32_C(0xAACCEE55));
+}
+
+
+//---------------------------------------------------------------------------------------------------------------------
+static void CryptoMem_DeriveDeviceKey(uint8_t key[SHA256_HASH_LENGTH_BYTES], const uint8_t seed[8u],
+		const uint8_t type[4u], const uint32_t index)
+{
+	// First derive the device-specific key
+	//  key = HMAC_{ROOT_KEY} ( type || seed )
+
+	// Construct the input block:
+	__UNALIGNED_UINT32_WRITE(&key[ 0u], __UNALIGNED_UINT32_READ(&seed[0u]));
+	__UNALIGNED_UINT32_WRITE(&key[ 4u], __UNALIGNED_UINT32_READ(&seed[4u]));
+	__UNALIGNED_UINT32_WRITE(&key[ 8u], __UNALIGNED_UINT32_READ(&type[0u]));
+	__UNALIGNED_UINT32_WRITE(&key[12u], __REV(index));
+
+	// Derive the key (via HMAC)
+	Sha256_HmacInit(gNv.page0.ROOT_KEY, sizeof(gNv.page0.ROOT_KEY));
+	Sha256_HmacUpdate(key, 16u);
+	Sha256_HmacFinal(key);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+static void CryptoMem_HmacInitFromDeviceKey(const uint8_t seed[8u], const uint8_t type[4u], const uint32_t index)
+{
+	uint8_t key[SHA256_HASH_LENGTH_BYTES];
+
+	// Derive the device specific key
+	CryptoMem_DeriveDeviceKey(key, seed, type, index);
+
+	// Next initialize the HMAC
+	Sha256_HmacInit(key, SHA256_HASH_LENGTH_BYTES);
+
+	// And clear the derived key
+	__builtin_memset(key, 0u, sizeof(key));
+}
 
 //---------------------------------------------------------------------------------------------------------------------
 uint8_t Eep_ByteReadCallback(uint8_t address)
@@ -300,6 +467,10 @@ void CryptoMem_Init(void)
 
 	gIoMem.regs.STAT = IOMEM_STAT_READY; // We are ready for operation
 	gCommandActive = false; // No commands are active
+
+	// Initialize the lockable bits from NV
+	gIoMem.regs.VOLATILE_BITS  = gNv.page0.NV_VOLATILE_BITS_INIT;
+	gIoMem.regs.VOLATILE_LOCKS = gNv.page0.NV_VOLATILE_LOCKS_INIT;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -408,7 +579,7 @@ static uint8_t CryptoMem_HandleQuote(void)
 	}
 
 	// Quote as HMAC over the PCRs (and extra data - if needed)
-	Sha256_HmacInit(&gNv.fields.root_key[0u], sizeof(gNv.fields.root_key));
+	CryptoMem_HmacInitFromDeviceKey(&gNv.page0.QUOTE_KEY_SEED[0u], kTag_Quote, 0u);
 
 	// "quot" marker, pcr mask and head data
 	{
@@ -418,8 +589,8 @@ static uint8_t CryptoMem_HandleQuote(void)
 		// Block IRQs (to ensure that the volatile I/O regs don't change)
 		__disable_irq();
 
-		*item++ = __REV(0x71756F74); // "quot"
-		*item++ = pcr_mask;          // PCR mask
+		*item++ = __UNALIGNED_UINT32_READ(kTag_Quote); // "QUOT"
+		*item++ = pcr_mask;                            // PCR mask
 
 		// Device UUID
 		if (0u != (pcr_mask & 0x80u))
@@ -484,6 +655,49 @@ static uint8_t CryptoMem_HandleQuote(void)
 
 //---------------------------------------------------------------------------------------------------------------------
 //
+// Command: 0xB0 - HMAC Key Derivation
+//   Input:
+//     ARG_0: Length of user KDF seed data (0-80 bytes)
+//     ARG_1: Unused
+//
+//     DATA: Seed input for key derivation
+//
+//
+//  Output:
+//     RET_0: Return code from command
+//          0x00 - Command completed successfully
+//          0xE1 - Parameter error
+//
+//     RET_1: Reserved (set to zero)
+//
+//     DATA: Derived key data
+//
+static uint8_t CryptoMem_HandleHmacKeyDerivation(void)
+{
+	const uint8_t seed_len = gIoMem.regs.ARG_0;
+
+	if ((seed_len > sizeof(gIoMem.regs.DATA)) || (0u != gIoMem.regs.ARG_1))
+	{
+		// Parameter error
+		return CryptoMem_FinishCommand(0xE1u);
+	}
+
+	// Initialize the HMAC engine with the derivation key
+	CryptoMem_HmacInitFromDeviceKey(&gNv.page0.HKDF_KEY_SEED[0u], kTag_HmacKdf, 0u);
+
+	// Derive the key as:
+	//
+	//   key := HMAC_{kHKDF} (seed)
+	//
+	Sha256_HmacUpdate(&gIoMem.regs.DATA[0u], seed_len);
+	Sha256_HmacFinal(&gIoMem.regs.DATA[0u]);
+
+	// Return the derived key
+	return CryptoMem_FinishCommandWithData(0x00u, SHA256_HASH_LENGTH_BYTES);
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+//
 // Command: 0xC0 - Increment Counter
 //   Input:
 //     ARG_0: Target counter index (0-1 is value; invalid index triggers a parameter error)
@@ -526,15 +740,16 @@ static uint8_t CryptoMem_HandleIncrement(void)
 //
 // Command: 0xFA - Enter Field Update Mode (ISP Entry)
 //
-// TODO: Authentication
+// This command is only available while the device is in unlocked state.
 //
-//   Input:
+// Input:
 //     ARG_0: Should be 0x69 ('i')
 //     ARG_1: Should be 0x73 ('s')
 //     ARG_2: Should be 0x70 ('p')
 //
-//  Output:
+// Output:
 //     RET_0: Return code from command
+//          (Command does not return on success)
 //          0xE5 - Command not allowed in this device state
 //
 //  RET_1: Reserved (set to zero)
@@ -542,7 +757,7 @@ static uint8_t CryptoMem_HandleIncrement(void)
 
 static uint8_t CryptoMem_HandleFieldUpdate(void)
 {
-	if (gNv.fields.marker == UINT32_C(0xAACCEE55))
+	if (CryptoMem_IsDeviceUnlocked())
 	{
 		// Enter ISP mode (only returns on failure)
 		Hal_EnterBootloader();
@@ -561,18 +776,18 @@ static uint8_t CryptoMem_HandleFieldUpdate(void)
 //
 // Command: 0xF1 - Write to NV memory
 //
-// TODO: Authentication
+// This command is only available while the device is in unlocked state.
 //
-//   Input:
-//     ARG_0: Should be 0x6E ('n')
-//     ARG_1: Should be 0x76 ('v')
-//     ARG_2: Should be 0x21 ('!')
+// Input:
+//     ARG_0: Unused (must be zero)
+//     ARG_1: Unused (must be zero)
 //
 //     DATA[0x00..0x3F]: Data to be written on the NV config page
 //
-//  Output:
+// Output:
 //     RET_0: Return code from command
 //          0x00 - Success
+//          0xE1 - Parameter error
 //          0xE4 - Command execution failed
 //          0xE5 - Command not allowed in this device state
 //
@@ -581,7 +796,12 @@ static uint8_t CryptoMem_HandleFieldUpdate(void)
 
 static uint8_t CryptoMem_HandleNvWrite(void)
 {
-	if (gNv.fields.marker == UINT32_C(0xAACCEE55))
+	if ((gIoMem.regs.ARG_0 != 0u) || (gIoMem.regs.ARG_1 != 0u))
+	{
+		return CryptoMem_FinishCommand(0xE1u);
+	}
+
+	if (CryptoMem_IsDeviceUnlocked())
 	{
 		// Write to the flash
 		if (!Hal_NvWrite(&gNv, &gIoMem.regs.DATA[0u]))
@@ -616,6 +836,10 @@ void CryptoMem_HandleCommand(void)
 
 	case 0xA0u: // Quote
 		(void) CryptoMem_HandleQuote();
+		break;
+
+	case 0xB0u:  // HMAC Key Derivarion
+		(void) CryptoMem_HandleHmacKeyDerivation();
 		break;
 
 	case 0xE0u: // Extend PCR

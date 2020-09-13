@@ -556,7 +556,7 @@ static uint8_t CryptoMem_HandleExtend(void)
 //        [6] Include the lockable (volatile) bits
 //        [5] Include the lockable (volatile) counter #1
 //        [4] Include the lockable (volatile) counter #0
-//        [3] Replace the PCR #0 content with the quote result.
+//        [3] Include NV user data area
 //        [2] Include PCR #2
 //        [1] Include PCR #1
 //        [0] Include PCR #0
@@ -628,6 +628,12 @@ static uint8_t CryptoMem_HandleQuote(void)
 		Sha256_HmacUpdate(header, (item - header) * sizeof(uint32_t));
 	}
 
+	// If enable: MAC the user data area
+	if ((pcr_mask & 0x04u) != 0u)
+	{
+		Sha256_HmacUpdate(&gIoMem.regs.USER_DATA[0u], sizeof(gIoMem.regs.USER_DATA[0u]));
+	}
+
 	// All selected PCRs
 	for (size_t i = 0u; i < 3u; ++i)
 	{
@@ -642,16 +648,6 @@ static uint8_t CryptoMem_HandleQuote(void)
 
 	// Finalize the HMAC
 	Sha256_HmacFinal(&gIoMem.regs.DATA[0]);
-
-	// Replace PCR #0 content with the hash of the quote
-	//
-	// Why do we use the hash of the quote? ==> we want to record the fact that the PCR has changed!
-	if (0u != (pcr_mask & 0x04u))
-	{
-		Sha256_Init();
-		Sha256_Update(&gIoMem.regs.DATA[0u], SHA256_HASH_LENGTH_BYTES);
-		Sha256_Final(&gIoMem.regs.PCR[0u][0u]);
-	}
 
 	CryptoMem_SetResponseLength(SHA256_HASH_LENGTH_BYTES);
 	return 0x00u;

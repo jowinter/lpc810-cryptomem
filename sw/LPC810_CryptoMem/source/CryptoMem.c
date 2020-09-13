@@ -736,8 +736,18 @@ static uint8_t CryptoMem_HandleIncrement(void)
 	return 0x00u;
 }
 
+//---------------------------------------------------------------------------------------------------------------------
+// Verify a SHA preimage
+//
+static bool CryptoMem_VerifyShaPreimage(uint8_t preimage[SHA256_HASH_LENGTH_BYTES], const uint8_t expected_hash[SHA256_HASH_LENGTH_BYTES])
+{
+	// Hash the preimage in place
+	Sha256_Init();
+	Sha256_Update(&preimage[0u], SHA256_HASH_LENGTH_BYTES);
+	Sha256_Final(&preimage[0u]);
 
-	return CryptoMem_FinishCommand(0x00u);
+	// And compare against the reference.
+	return 0u == __builtin_memcmp(&preimage[0u], &expected_hash[0u], SHA256_HASH_LENGTH_BYTES);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -749,14 +759,21 @@ static uint8_t CryptoMem_HandleIncrement(void)
 // Input:
 //     ARG_0: NV slot index to write:
 //              0x2A - User data area (NV_USER_DATA)
-//                     DATA[127:  0] holds the user data
-//                     DATA[255:128] holds the preimage for the write
+//                     DATA[255:  0] holds the user data
+//                     DATA[511:256] write password (preimage of SHA-256 hash stored on device)
 //
 //                     Authentication via SHA-256
 //
 //              0x5C - Device configuration (requires unlocked device)
 //
-//     ARG_1: Unused (must be zero)
+//              0xFA - Enter firmware update mode (command does not respond on I2C)
+//                     DATA[255:  0] reserved (ignored; should be zero)
+//                     DATA[511:256] write password (preimage of SHA-256 hash stored on device)
+//
+//                     Authentication via SHA-256
+//
+//
+//     ARG_1: Reserved (ignored; should be zero)
 //
 //     DATA[0x00..0x3F]: Data to be written on the NV config page
 //
@@ -793,35 +810,27 @@ static uint8_t CryptoMem_HandleNvWrite(void)
 	{
 		// Write to user data area
 
-		// Hash the provided user password
-		Sha256_Init();
-		Sha256_Update(&gIoMem.regs.DATA[32u], SHA256_HASH_LENGTH_BYTES);
-		Sha256_Final(&gIoMem.regs.DATA[32u]);
-
 		// Allow write on password match, or if the device is in unlocked mode
-		if (0u == __builtin_memcmp(&gIoMem.regs.DATA[32u], &gNv.page1.NV_USER_AUTH[0u], SHA256_HASH_LENGTH_BYTES))
+		if (CryptoMem_VerifyShaPreimage(&gIoMem.regs.DATA[32u], &gNv.page1.NV_USER_AUTH[0u]))
 		{
 			// Write to the flash
 			if (!Hal_NvWrite(&gNv.page1, &gIoMem.regs.DATA[0u]))
 			{
-				return CryptoMem_FinishCommand(0xE4);
+				return 0xE4;
 			}
 
 			// Reload the RAM mirror of the user data area
 			__builtin_memcpy(&gIoMem.regs.USER_DATA[0], &gNv.page1.NV_USER_DATA[0u], sizeof(gIoMem.regs.USER_DATA));
 
-			return CryptoMem_FinishCommand(0x00u);
-		}
-		else
-		{
 			// Maintenance operation is done
 			return 0x00u;
 		}
 	}
 	else if (nv_index == 0xFAu)
 	{
-		// Entry to field update mode
-		if (CryptoMem_IsDeviceUnlocked())
+		// Entry to field update mode (we allow entry to field-update mode if the caller can provide a hash preimage
+		// to the root key.
+		if (CryptoMem_IsDeviceUnlocked() || CryptoMem_VerifyShaPreimage(&gIoMem.regs.DATA[32u], &gNv.page0.ROOT_KEY[0u]))
 		{
 			// Enter ISP mode (only returns on failure)
 			Hal_EnterBootloader();

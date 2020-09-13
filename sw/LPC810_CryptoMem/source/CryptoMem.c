@@ -323,7 +323,9 @@ HAL_NV_DATA const CryptoMem_Nv_t gNv =
 	}
 };
 
-_Static_assert(sizeof(gNv) == 128u, "Size of I/O register structure (raw view) must be exactly 128 bytes.");
+_Static_assert(sizeof(gNv.page0) == 64u, "Size of NV page 0 structure (raw view) must be exactly 128 bytes.");
+_Static_assert(sizeof(gNv.page1) == 64u, "Size of NV page 1 structure (raw view) must be exactly 128 bytes.");
+_Static_assert(sizeof(gNv) == 128u, "Size of NV structure (raw view) must be exactly 128 bytes.");
 
 //---------------------------------------------------------------------------------------------------------------------
 static const uint8_t kTag_Quote[4u]    = "QUOT";

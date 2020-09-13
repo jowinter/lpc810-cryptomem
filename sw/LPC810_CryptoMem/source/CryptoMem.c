@@ -535,8 +535,6 @@ static uint8_t CryptoMem_HandleIncrement(void)
 //
 //  Output:
 //     RET_0: Return code from command
-//          0xE1 - Parameter error
-//          0xE4 - Command execution failed
 //          0xE5 - Command not allowed in this device state
 //
 //  RET_1: Reserved (set to zero)
@@ -547,9 +545,10 @@ static uint8_t CryptoMem_HandleFieldUpdate(void)
 	if (gNv.fields.marker == UINT32_C(0xAACCEE55))
 	{
 		// Enter ISP mode (only returns on failure)
-		Hal_EnterBootloader((uint32_t *)&gIoMem.regs.DATA[0]);
+		Hal_EnterBootloader();
 
-		return CryptoMem_FinishCommandWithData(0xE4u, 4u);
+		// Unreachable
+		__builtin_unreachable();
 	}
 	else
 	{

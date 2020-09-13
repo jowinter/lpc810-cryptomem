@@ -20,7 +20,7 @@ extern __NO_RETURN void Hal_Halt(void);
 extern void Hal_SetReadyPin(bool ready);
 
 extern void Hal_ReadDeviceID(uint32_t device_id[4]);
-extern void Hal_EnterBootloader(uint32_t *const isp_error);
+extern __NO_RETURN void Hal_EnterBootloader(void);
 
 #define HAL_NV_FLASH_START      (0x00000000u)
 #define HAL_NV_PAGE_SIZE        (64u)

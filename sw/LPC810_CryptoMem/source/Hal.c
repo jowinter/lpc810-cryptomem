@@ -13,7 +13,9 @@
 
 #include "fsl_swm.h"
 #include "fsl_iap.h"
+#include "fsl_power.h"
 #include "fsl_gpio.h"
+#include "fsl_wwdt.h"
 
 #include "LPC810.h"
 
@@ -88,16 +90,31 @@ void Hal_ReadDeviceID(uint32_t device_id[4u])
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-void Hal_EnterBootloader(uint32_t *const isp_error)
+__NO_RETURN void Hal_EnterBootloader(void)
 {
+	uint32_t isp_error;
+
 	// Ensure that IRQs are off
 	__disable_irq();
 
-	// Now try to enable the ISP
-	IAP_ReinvokeISP(1u, isp_error);
+	// Disable the watchdog
+	WWDT_Disable(WWDT);
 
-	// This point is only reached if ISP entry failed
-	__enable_irq();
+	// Stop the I2C slave interface
+	Eep_I2CStopSlave();
+
+	// Ensure that we are running on the 12 MHz IRC clock (with divider 1)
+	CLOCK_SetMainClkSrc(kCLOCK_MainClkSrcIrc);
+	CLOCK_SetCoreSysClkDiv(1u);
+
+	// Now try to enable the ISP
+	IAP_ReinvokeISP(1u, &isp_error);
+
+	// Entry into ISP mode failed, we force a device reset
+	NVIC_SystemReset();
+
+	// Unreachable (system reset does not return)
+	__builtin_unreachable();
 }
 
 //---------------------------------------------------------------------------------------------------------------------

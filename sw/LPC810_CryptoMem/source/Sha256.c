@@ -223,7 +223,7 @@ __USED void Sha256_Update(const void *const data, const uint32_t size)
 		__builtin_memcpy(buf_data + buf_offset, src, size_to_process);
 
 		// Flush the block if needed
-		if (sizeof(ctx->W) == (buf_capacity + size_to_process))
+		if (sizeof(ctx->W) == (buf_offset + size_to_process))
 		{
 			Sha256_Process(ctx);
 		}

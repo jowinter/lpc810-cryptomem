@@ -347,7 +347,7 @@ static bool CryptoMem_IsDeviceUnlocked(void)
 static void CryptoMem_DeriveDeviceKey(uint8_t key[SHA256_HASH_LENGTH_BYTES], const uint8_t seed[8u], const uint8_t type[4u])
 {
 	// First derive the device-specific key
-	//  key = HMAC_{ROOT_KEY} ( type || seed )
+	//  key = HMAC_{ROOT_KEY} ( seed || type )
 
 	// Construct the input block:
 	__UNALIGNED_UINT32_WRITE(&key[ 0u], __UNALIGNED_UINT32_READ(&seed[0u]));

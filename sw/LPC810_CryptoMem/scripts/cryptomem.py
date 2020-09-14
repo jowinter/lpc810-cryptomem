@@ -227,14 +227,14 @@ class LPC810_CryptoMem_Simulator:
 
     def quote(self, flags=0, data=[]):
         # Construct the header blob
-        flags = int(flags)
-        data  = bytes(data)
+        pcr_mask = int(flags)
+        data     = bytes(data)
 
         hmac = HMAC.new(self.quote_key, digestmod=SHA256)
 
         # Header
         hmac.update(b"QUOT")
-        hmac.update(bytes([flags]))
+        hmac.update(struct.pack("<I", pcr_mask))
         
         # Device UUID
         if (0 != (pcr_mask & 0x80)):
@@ -255,7 +255,7 @@ class LPC810_CryptoMem_Simulator:
         if (0 != (pcr_mask & 0x08)):
             hmac.update(self.nv_user_data)
 
-        # And the enabled PCRs
+        # And the enabled PCRs                
         if (0 != (pcr_mask & 0x04)):
             hmac.update(self.pcrs[2])
 

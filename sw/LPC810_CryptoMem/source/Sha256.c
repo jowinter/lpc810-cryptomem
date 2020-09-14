@@ -30,7 +30,7 @@ typedef struct
 	/**
 	 * @brief Holding area for ipad/opad (in HMAC calculations)
 	 */
-	uint8_t pad[SHA256_HASH_LENGTH_BYTES];
+	uint8_t pad[SHA256_HASH_BLOCK_LENGTH_BYTES];
 } Sha256_Ctx_t;
 
 /**
@@ -283,7 +283,10 @@ __USED void Sha256_HmacInit(const uint8_t *const key, const uint32_t key_len)
 	// Initialize the hash context
 	Sha256_Init();
 
-	if (key_len > SHA256_HASH_LENGTH_BYTES)
+	// Zero the padding
+	__builtin_memset(&ctx->pad[0u], 0u, SHA256_HASH_BLOCK_LENGTH_BYTES);
+
+	if (key_len > SHA256_HASH_BLOCK_LENGTH_BYTES)
 	{
 		// Key length is greater than block size (need to hash once)
 		Sha256_Update(key, key_len);
@@ -293,20 +296,19 @@ __USED void Sha256_HmacInit(const uint8_t *const key, const uint32_t key_len)
 	{
 		// Copy the key (and pad with zeros)
 		__builtin_memcpy(&ctx->pad[0u], &key[0u], key_len);
-		__builtin_memset(&ctx->pad[key_len], 0u, SHA256_HASH_LENGTH_BYTES - key_len);
 	}
 
 	// Prepare the ipad value
-	for (size_t i = 0u; i < SHA256_HASH_LENGTH_BYTES; ++i)
+	for (size_t i = 0u; i < SHA256_HASH_BLOCK_LENGTH_BYTES; ++i)
 	{
 		ctx->pad[i] ^= 0x36u;
 	}
 
 	// Start the inner hash (with ipad)
-	Sha256_Update(&ctx->pad[0u], SHA256_HASH_LENGTH_BYTES);
+	Sha256_Update(&ctx->pad[0u], SHA256_HASH_BLOCK_LENGTH_BYTES);
 
 	// Prepare the opad value
-	for (size_t i = 0u; i < SHA256_HASH_LENGTH_BYTES; ++i)
+	for (size_t i = 0u; i < SHA256_HASH_BLOCK_LENGTH_BYTES; ++i)
 	{
 		ctx->pad[i] ^= (0x36u ^ 0x5Cu);
 	}
@@ -327,10 +329,10 @@ __USED void Sha256_HmacFinal(uint8_t digest[SHA256_HASH_LENGTH_BYTES])
 	Sha256_Final(digest);
 
 	// Now compute the outer hash
-	Sha256_Update(&ctx->pad[0u], SHA256_HASH_LENGTH_BYTES);
+	Sha256_Update(&ctx->pad[0u], SHA256_HASH_BLOCK_LENGTH_BYTES);
 	Sha256_Update(digest, SHA256_HASH_LENGTH_BYTES);
 	Sha256_Final(digest);
 
 	// And done
-	__builtin_memset(&ctx->pad[0u], 0u, SHA256_HASH_LENGTH_BYTES);
+	__builtin_memset(&ctx->pad[0u], 0u, SHA256_HASH_BLOCK_LENGTH_BYTES);
 }

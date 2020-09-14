@@ -15,6 +15,12 @@
 #define SHA256_HASH_LENGTH_BYTES (32u)
 
 /**
+ * @brief Length of a SHA-256 block in bytes (64 bytes).
+ */
+#define SHA256_HASH_BLOCK_LENGTH_BYTES (64u)
+
+
+/**
  * @brief Initializes a SHA-256 hash context for the hash calculation.
  */
 extern void Sha256_Init(void);

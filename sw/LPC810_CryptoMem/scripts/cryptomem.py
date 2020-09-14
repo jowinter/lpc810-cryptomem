@@ -265,6 +265,9 @@ class LPC810_CryptoMem_Simulator:
         if (0 != (pcr_mask & 0x01)):
             hmac.update(self.pcrs[0])
 
+        if (len(data) > 0):
+            hmac.update(data)
+
         return bytes(hmac.digest())
         
 

@@ -629,7 +629,7 @@ static uint8_t CryptoMem_HandleQuote(void)
 	}
 
 	// If enable: MAC the user data area
-	if ((pcr_mask & 0x04u) != 0u)
+	if ((pcr_mask & 0x08u) != 0u)
 	{
 		Sha256_HmacUpdate(&gIoMem.regs.USER_DATA[0u], sizeof(gIoMem.regs.USER_DATA[0u]));
 	}

@@ -33,16 +33,16 @@ void BOARD_InitBootClocks(void);
 #endif /* __cplusplus*/
 
 /*******************************************************************************
- ********************** Configuration BOARD_BootClockRUN ***********************
+ ********************** Configuration BOARD_I2CBootClock ***********************
  ******************************************************************************/
 /*******************************************************************************
- * Definitions for BOARD_BootClockRUN configuration
+ * Definitions for BOARD_I2CBootClock configuration
  ******************************************************************************/
-#define BOARD_BOOTCLOCKRUN_CORE_CLOCK               8000000U  /*!< Core clock frequency: 8000000Hz */
+#define BOARD_I2CBOOTCLOCK_CORE_CLOCK               8000000U  /*!< Core clock frequency: 8000000Hz */
 
 
 /*******************************************************************************
- * API for BOARD_BootClockRUN configuration
+ * API for BOARD_I2CBootClock configuration
  ******************************************************************************/
 #if defined(__cplusplus)
 extern "C" {
@@ -52,7 +52,33 @@ extern "C" {
  * @brief This function executes configuration of clocks.
  *
  */
-void BOARD_BootClockRUN(void);
+void BOARD_I2CBootClock(void);
+
+#if defined(__cplusplus)
+}
+#endif /* __cplusplus*/
+
+/*******************************************************************************
+ ********************* Configuration BOARD_UARTBootClock ***********************
+ ******************************************************************************/
+/*******************************************************************************
+ * Definitions for BOARD_UARTBootClock configuration
+ ******************************************************************************/
+#define BOARD_UARTBOOTCLOCK_CORE_CLOCK              8000000U  /*!< Core clock frequency: 8000000Hz */
+
+
+/*******************************************************************************
+ * API for BOARD_UARTBootClock configuration
+ ******************************************************************************/
+#if defined(__cplusplus)
+extern "C" {
+#endif /* __cplusplus*/
+
+/*!
+ * @brief This function executes configuration of clocks.
+ *
+ */
+void BOARD_UARTBootClock(void);
 
 #if defined(__cplusplus)
 }

@@ -2,6 +2,7 @@
  * @file
  * @brief CryptoMem main
  */
+#include <Config.h>
 #include <Hal.h>
 #include <Eep.h>
 #include <Sha256.h>
@@ -832,7 +833,7 @@ static uint8_t CryptoMem_HandleNvWrite(void)
 		// to the root key.
 		if (CryptoMem_IsDeviceUnlocked() || CryptoMem_VerifyShaPreimage(&gIoMem.regs.DATA[32u], &gNv.page0.ROOT_KEY[0u]))
 		{
-			// Enter ISP mode (only returns on failure)
+			// Enter ISP mode (never returns)
 			Hal_EnterBootloader();
 
 			// Unreachable
@@ -868,10 +869,15 @@ static uint8_t CryptoMem_HandleNvWrite(void)
 //
 static uint8_t CryptoMem_HandleSwitchToExtClock(void)
 {
+#if (CONFIG_WIRED_IF_TYPE == CONFIG_WIRED_IF_I2C)
 	// Switch to external clocking
 	Hal_SwitchToExtClock();
 
 	return 0x00u;
+#else
+	// Not support (yet) in non-I2C builds
+	return 0xEFu;
+#endif
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -938,8 +944,17 @@ int main(void)
 	// Initialize the command layer
 	CryptoMem_Init();
 
+#if (CONFIG_WIRED_IF_TYPE == CONFIG_WIRED_IF_I2C)
 	// Finally start the I2C slave (after this point commands can be received at any time)
   	Eep_I2CStartSlave(gNv.page0.NV_SYS_CFG.bits.I2C_ADDR);
+
+#elif (CONFIG_WIRED_IF_TYPE == CONFIG_WIRED_IF_UART)
+  	// Finally start the UART interface
+  	Eep_UartStartSlave();
+
+#else
+# error "Unsupported wired interface configuration"
+#endif
 
   	while (true)
   	{

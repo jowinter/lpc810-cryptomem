@@ -19,7 +19,6 @@
 
 #include "LPC810.h"
 
-
 //---------------------------------------------------------------------------------------------------------------------
 // Set Code Read Protection to CRP2 (No SWD, only full erase allowed before firmware update)
 //
@@ -30,23 +29,36 @@ __CRP const unsigned int CRP_WORD = CRP_CRP2;
 //---------------------------------------------------------------------------------------------------------------------
 HAL_INIT_CODE void Hal_Init(void)
 {
+	// Regular board pin setup
+#if (CONFIG_WIRED_IF_TYPE == CONFIG_WIRED_IF_I2C)
 	// Disable the SWD interface pins (we need them as I2C pins)
 	CLOCK_EnableClock(kCLOCK_Swm);
 	SWM_SetFixedPinSelect(SWM0, kSWM_SWCLK, false);
 	SWM_SetFixedPinSelect(SWM0, kSWM_SWDIO, false);
 	CLOCK_DisableClock(kCLOCK_Swm);
 
-	// Regular board pin setup
-	BOARD_InitBootPins();
-	BOARD_InitBootClocks();
-	BOARD_InitBootPeripherals();
+	BOARD_I2CInitPins();
+	BOARD_I2CBootClock();
 
 	// Setup the I2C slave
 	CLOCK_EnableClock(kCLOCK_I2c0);
 	Eep_I2CSetClockDivider();
+
+#elif (CONFIG_WIRED_IF_TYPE == CONFIG_WIRED_IF_UART)
+	BOARD_UARTInitPins();
+	BOARD_UARTBootClock();
+
+	// Enable the UART
+	CLOCK_EnableClock(kCLOCK_Uart0);
+	RESET_PeripheralReset(kUART0_RST_N_SHIFT_RSTn);
+#endif
 }
 
 //---------------------------------------------------------------------------------------------------------------------
+#if (CONFIG_WIRED_IF_TYPE == CONFIG_WIRED_IF_I2C)
+//
+// Currently only support in I2C builds (size, clock management)
+//
 void Hal_SwitchToExtClock(void)
 {
 	__disable_irq();
@@ -74,6 +86,7 @@ void Hal_SwitchToExtClock(void)
 
 	__enable_irq();
 }
+#endif
 
 //---------------------------------------------------------------------------------------------------------------------
 void Hal_Idle(void)
@@ -88,8 +101,15 @@ __NO_RETURN void Hal_Halt(void)
 	// Interrupts off
 	__disable_irq();
 
+#if (CONFIG_WIRED_IF_TYPE == CONFIG_WIRED_IF_I2C)
 	// Stop the I2C slave interface
 	Eep_I2CStopSlave();
+
+#elif (CONFIG_WIRED_IF_TYPE == CONFIG_WIRED_IF_UART)
+	// Stop the UART slave interface
+	Eep_UartStopSlave();
+
+#endif
 
 	// Signal an error
 	Hal_SetReadyPin(false);
@@ -128,8 +148,15 @@ __NO_RETURN void Hal_EnterBootloader(void)
 	// Disable the watchdog
 	WWDT_Disable(WWDT);
 
+#if (CONFIG_WIRED_IF_TYPE == CONFIG_WIRED_IF_I2C)
 	// Stop the I2C slave interface
 	Eep_I2CStopSlave();
+
+#elif (CONFIG_WIRED_IF_TYPE == CONFIG_WIRED_IF_UART)
+	// Stop the UART slave interface
+	Eep_UartStopSlave();
+
+#endif
 
 	// Ensure that we are running on the 12 MHz IRC clock (with divider 1)
 	CLOCK_SetMainClkSrc(kCLOCK_MainClkSrcIrc);
@@ -158,7 +185,7 @@ bool Hal_NvWrite(const void* data, const uint8_t nv_page[64u])
 		return false;
 	}
 
-	if (kStatus_IAP_Success != IAP_ErasePage(page, page, BOARD_BOOTCLOCKRUN_CORE_CLOCK))
+	if (kStatus_IAP_Success != IAP_ErasePage(page, page, HAL_SYSTEM_CLOCK))
 	{
 		// Erase failed
 		return false;
@@ -184,14 +211,29 @@ bool Hal_NvWrite(const void* data, const uint8_t nv_page[64u])
 //---------------------------------------------------------------------------------------------------------------------
 void Hal_SetReadyPin(bool ready)
 {
-	GPIO_PinWrite(BOARD_INITPINS_RDY_N_GPIO, BOARD_INITPINS_RDY_N_PORT, BOARD_INITPINS_RDY_N_PIN, ready ? 0u : 1u);
-
+	GPIO_PinWrite(BOARD_I2CINITPINS_RDY_N_GPIO, BOARD_I2CINITPINS_RDY_N_PORT, BOARD_I2CINITPINS_RDY_N_PIN, ready ? 0u : 1u);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
 void I2C0_IRQHandler(void)
 {
+#if (CONFIG_WIRED_IF_TYPE == CONFIG_WIRED_IF_I2C)
+	// I2C interface is used for virtual EEPROM interaction
 	Eep_I2CSlaveIrqHandler();
+#else
+	// I2C interface is not implemented
+	Hal_Halt();
+#endif
+}
+
+void USART0_IRQHandler(void)
+{
+#if (CONFIG_WIRED_IF_TYPE == CONFIG_WIRED_IF_UART)
+	// UART interface is used for virtual EEPROM interaction
+	Eep_UartIrqHandler();
+#else
+	// UART interface is not implemented
+#endif
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -211,7 +253,6 @@ HAL_UNHANDLED_IRQ(NMI_Handler);
 
 HAL_UNHANDLED_IRQ(SPI0_IRQHandler);
 HAL_UNHANDLED_IRQ(SPI1_IRQHandler);
-HAL_UNHANDLED_IRQ(USART0_IRQHandler);
 HAL_UNHANDLED_IRQ(USART1_IRQHandler);
 HAL_UNHANDLED_IRQ(USART2_IRQHandler);
 HAL_UNHANDLED_IRQ(Reserved18_IRQHandler);

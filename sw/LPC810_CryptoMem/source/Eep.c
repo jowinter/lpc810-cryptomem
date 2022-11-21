@@ -3,8 +3,11 @@
  * @brief EEPROM-style I2C Slave Interface
  *
  */
+#include <Config.h>
 #include <Hal.h>
 #include <Eep.h>
+
+#if (CONFIG_WIRED_IF_TYPE == CONFIG_WIRED_IF_I2C)
 
 #include "board.h"
 #include "peripherals.h"
@@ -201,3 +204,5 @@ void Eep_I2CSlaveIrqHandler(void)
 		}
 	}
 }
+
+#endif //  (CONFIG_WIRED_IF_TYPE == CONFIG_WIRED_IF_I2C)

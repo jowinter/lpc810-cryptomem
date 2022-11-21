@@ -14,7 +14,6 @@ processor_version: 7.0.1
 functionalGroups:
 - name: BOARD_InitPeripherals
   UUID: 4b00c524-a63f-4dfe-92ee-a1065f4615d3
-  called_from_default_init: true
   selectedCore: core0
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
 
@@ -50,5 +49,4 @@ void BOARD_InitPeripherals(void)
  **********************************************************************************************************************/
 void BOARD_InitBootPeripherals(void)
 {
-  BOARD_InitPeripherals();
 }

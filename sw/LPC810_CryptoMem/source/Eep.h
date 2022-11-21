@@ -8,8 +8,10 @@
 #ifndef EEP_H_
 #define EEP_H_
 
+#include <Config.h>
 #include <Hal.h>
 
+#if (CONFIG_WIRED_IF_TYPE == CONFIG_WIRED_IF_I2C)
 /**
  * @brief Set the I2C clock divider
  *
@@ -33,6 +35,24 @@ extern void Eep_I2CStopSlave(void);
  * @brief IRQ handler for slave interrupts.
  */
 extern void Eep_I2CSlaveIrqHandler(void);
+#endif
+
+#if (CONFIG_WIRED_IF_TYPE == CONFIG_WIRED_IF_UART)
+/**
+ * @brief Start the UART slave
+ */
+extern void Eep_UartStartSlave(void);
+
+/**
+ * @brief Stop the UART slave
+ */
+extern void Eep_UartStopSlave(void);
+
+/**
+ * @brief Handle an UART slave command.
+ */
+extern void Eep_UartIrqHandler(void);
+#endif
 
 /**
  * @brief Provides EEPROM byte read data.

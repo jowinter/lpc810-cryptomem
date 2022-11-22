@@ -211,7 +211,11 @@ bool Hal_NvWrite(const void* data, const uint8_t nv_page[64u])
 //---------------------------------------------------------------------------------------------------------------------
 void Hal_SetReadyPin(bool ready)
 {
-	GPIO_PinWrite(BOARD_I2CINITPINS_RDY_N_GPIO, BOARD_I2CINITPINS_RDY_N_PORT, BOARD_I2CINITPINS_RDY_N_PIN, ready ? 0u : 1u);
+#if (CONFIG_WIRED_IF_TYPE == CONFIG_WIRED_IF_I2C)
+	GPIO_PinWrite(BOARD_I2CINITPINS_I2C_RDY_N_GPIO, BOARD_I2CINITPINS_I2C_RDY_N_PORT, BOARD_I2CINITPINS_I2C_RDY_N_PIN, ready ? 0u : 1u);
+#elif (CONFIG_WIRED_IF_UART == CONFIG_WIRED_IF_UART)
+	GPIO_PinWrite(BOARD_UARTINITPINS_UART_RDY_N_GPIO, BOARD_UARTINITPINS_UART_RDY_N_PORT, BOARD_UARTINITPINS_UART_RDY_N_PIN, ready ? 0u : 1u);
+#endif
 }
 
 //---------------------------------------------------------------------------------------------------------------------

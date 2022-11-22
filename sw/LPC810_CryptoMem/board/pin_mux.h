@@ -31,25 +31,31 @@ void BOARD_InitBootPins(void);
 /*!
  * @brief Open-drain mode.: Open-drain mode enabled. Remark: This is not a true open-drain mode. */
 #define PIO0_3_OD_ENABLED 0x01u
+/*!
+ * @brief Selects function mode (on-chip pull-up/pull-down resistor control).: Pull-up. Pull-up resistor enabled. */
+#define PIO0_4_MODE_PULL_UP 0x02u
+/*!
+ * @brief Open-drain mode.: Open-drain mode enabled. Remark: This is not a true open-drain mode. */
+#define PIO0_4_OD_ENABLED 0x01u
 
-/*! @name PIO0_3 (number 3), SCL
+/*! @name PIO0_3 (number 3), I2C_SCL
   @{ */
-#define BOARD_I2CINITPINS_SCL_PORT 0U /*!<@brief PORT device index: 0 */
-#define BOARD_I2CINITPINS_SCL_PIN 3U /*!<@brief PIO0 GPIO pin index: 3 */
-                                     /* @} */
+#define BOARD_I2CINITPINS_I2C_SCL_PORT 0U /*!<@brief PORT device index: 0 */
+#define BOARD_I2CINITPINS_I2C_SCL_PIN 3U /*!<@brief PIO0 GPIO pin index: 3 */
+                                         /* @} */
 
-/*! @name PIO0_2 (number 4), SDA
+/*! @name PIO0_2 (number 4), I2C_SDA
   @{ */
-#define BOARD_I2CINITPINS_SDA_PORT 0U /*!<@brief PORT device index: 0 */
-#define BOARD_I2CINITPINS_SDA_PIN 2U /*!<@brief PIO0 GPIO pin index: 2 */
-                                     /* @} */
+#define BOARD_I2CINITPINS_I2C_SDA_PORT 0U /*!<@brief PORT device index: 0 */
+#define BOARD_I2CINITPINS_I2C_SDA_PIN 2U /*!<@brief PIO0 GPIO pin index: 2 */
+                                         /* @} */
 
-/*! @name PIO0_1 (number 5), RDY_N
+/*! @name PIO0_4 (number 2), I2C_RDY_N
   @{ */
-#define BOARD_I2CINITPINS_RDY_N_GPIO GPIO /*!<@brief GPIO device name: GPIO */
-#define BOARD_I2CINITPINS_RDY_N_PORT 0U   /*!<@brief PORT device index: 0 */
-#define BOARD_I2CINITPINS_RDY_N_PIN 1U    /*!<@brief PIO0 GPIO pin index: 1 */
-                                          /* @} */
+#define BOARD_I2CINITPINS_I2C_RDY_N_GPIO GPIO /*!<@brief GPIO device name: GPIO */
+#define BOARD_I2CINITPINS_I2C_RDY_N_PORT 0U   /*!<@brief PORT device index: 0 */
+#define BOARD_I2CINITPINS_I2C_RDY_N_PIN 4U    /*!<@brief PIO0 GPIO pin index: 4 */
+                                              /* @} */
 
 /*!
  * @brief Configures pin routing and optionally pin electrical features.
@@ -57,12 +63,31 @@ void BOARD_InitBootPins(void);
  */
 void BOARD_I2CInitPins(void); /* Function assigned for the Cortex-M0P */
 
-/*! @name PIO0_1 (number 5), RDY_N
+/*!
+ * @brief Selects function mode (on-chip pull-up/pull-down resistor control).: Pull-up. Pull-up resistor enabled. */
+#define PIO0_1_MODE_PULL_UP 0x02u
+/*!
+ * @brief Open-drain mode.: Open-drain mode enabled. Remark: This is not a true open-drain mode. */
+#define PIO0_1_OD_ENABLED 0x01u
+
+/*! @name PIO0_0 (number 8), UART_RXD
   @{ */
-#define BOARD_UARTINITPINS_RDY_N_GPIO GPIO /*!<@brief GPIO device name: GPIO */
-#define BOARD_UARTINITPINS_RDY_N_PORT 0U   /*!<@brief PORT device index: 0 */
-#define BOARD_UARTINITPINS_RDY_N_PIN 1U    /*!<@brief PIO0 GPIO pin index: 1 */
+#define BOARD_UARTINITPINS_UART_RXD_PORT 0U /*!<@brief PORT device index: 0 */
+#define BOARD_UARTINITPINS_UART_RXD_PIN 0U /*!<@brief PIO0 GPIO pin index: 0 */
                                            /* @} */
+
+/*! @name PIO0_4 (number 2), I2C_RDY_N
+  @{ */
+#define BOARD_UARTINITPINS_UART_TXD_PORT 0U /*!<@brief PORT device index: 0 */
+#define BOARD_UARTINITPINS_UART_TXD_PIN 4U /*!<@brief PIO0 GPIO pin index: 4 */
+                                           /* @} */
+
+/*! @name PIO0_1 (number 5), UART_RDY_N
+  @{ */
+#define BOARD_UARTINITPINS_UART_RDY_N_GPIO GPIO /*!<@brief GPIO device name: GPIO */
+#define BOARD_UARTINITPINS_UART_RDY_N_PORT 0U   /*!<@brief PORT device index: 0 */
+#define BOARD_UARTINITPINS_UART_RDY_N_PIN 1U    /*!<@brief PIO0 GPIO pin index: 1 */
+                                                /* @} */
 
 /*!
  * @brief Configures pin routing and optionally pin electrical features.

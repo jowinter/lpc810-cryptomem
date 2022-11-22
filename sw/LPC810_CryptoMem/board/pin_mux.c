@@ -13,16 +13,17 @@ package_id: LPC810M021FN8
 mcu_data: ksdk2_0
 processor_version: 7.0.1
 pin_labels:
-- {pin_num: '3', pin_signal: SWCLK/PIO0_3, label: SCL, identifier: SCL}
-- {pin_num: '4', pin_signal: SWDIO/PIO0_2, label: SDA, identifier: SDA}
-- {pin_num: '2', pin_signal: PIO0_4, label: TXD, identifier: RDY_N}
-- {pin_num: '5', pin_signal: PIO0_1/ACMP_I2/CLKIN, label: RDY_N, identifier: RDY_N}
-- {pin_num: '8', pin_signal: PIO0_0/ACMP_I1, label: RXD}
+- {pin_num: '4', pin_signal: SWDIO/PIO0_2, label: I2C_SDA, identifier: SDA;I2C_SDA}
+- {pin_num: '2', pin_signal: PIO0_4, label: I2C_RDY_N, identifier: RDY_N;UART_TXD;I2C_RDY_N}
+- {pin_num: '8', pin_signal: PIO0_0/ACMP_I1, label: UART_RXD, identifier: UART_RXD;UART_RDY_N}
+- {pin_num: '3', pin_signal: SWCLK/PIO0_3, label: I2C_SCL, identifier: UART_RDY_N;I2C_SCL}
+- {pin_num: '5', pin_signal: PIO0_1/ACMP_I2/CLKIN, label: UART_RDY_N, identifier: UART_RDY_N}
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS ***********
  */
 /* clang-format on */
 
 #include "fsl_common.h"
+#include "fsl_gpio.h"
 #include "fsl_swm.h"
 #include "pin_mux.h"
 
@@ -42,9 +43,9 @@ void BOARD_InitBootPins(void)
 BOARD_I2CInitPins:
 - options: {callFromInitBoot: 'false', coreID: core0, enableClock: 'true'}
 - pin_list:
-  - {pin_num: '3', peripheral: I2C0, signal: SCL, pin_signal: SWCLK/PIO0_3, opendrain: enabled}
-  - {pin_num: '4', peripheral: I2C0, signal: SDA, pin_signal: SWDIO/PIO0_2, opendrain: enabled}
-  - {pin_num: '5', peripheral: GPIO, signal: 'PIO0, 1', pin_signal: PIO0_1/ACMP_I2/CLKIN}
+  - {pin_num: '3', peripheral: I2C0, signal: SCL, pin_signal: SWCLK/PIO0_3, identifier: I2C_SCL, opendrain: enabled}
+  - {pin_num: '4', peripheral: I2C0, signal: SDA, pin_signal: SWDIO/PIO0_2, identifier: I2C_SDA, opendrain: enabled}
+  - {pin_num: '2', peripheral: GPIO, signal: 'PIO0, 4', pin_signal: PIO0_4, identifier: I2C_RDY_N, direction: OUTPUT, gpio_init_state: 'true', mode: pullUp, opendrain: enabled}
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS ***********
  */
 /* clang-format on */
@@ -60,6 +61,15 @@ void BOARD_I2CInitPins(void)
 {
     /* Enables clock for switch matrix.: Enable. */
     CLOCK_EnableClock(kCLOCK_Swm);
+    /* Enables the clock for the GPIO0 module */
+    CLOCK_EnableClock(kCLOCK_Gpio0);
+
+    gpio_pin_config_t I2C_RDY_N_config = {
+        .pinDirection = kGPIO_DigitalOutput,
+        .outputLogic = 1U,
+    };
+    /* Initialize GPIO functionality on pin PIO0_4 (pin 2)  */
+    GPIO_PinInit(BOARD_I2CINITPINS_I2C_RDY_N_GPIO, BOARD_I2CINITPINS_I2C_RDY_N_PORT, BOARD_I2CINITPINS_I2C_RDY_N_PIN, &I2C_RDY_N_config);
 
     IOCON->PIO[6] = ((IOCON->PIO[6] &
                       /* Mask bits to zero which are setting */
@@ -74,6 +84,17 @@ void BOARD_I2CInitPins(void)
 
                      /* Open-drain mode.: Open-drain mode enabled. Remark: This is not a true open-drain mode. */
                      | IOCON_PIO_OD(PIO0_3_OD_ENABLED));
+
+    IOCON->PIO[4] = ((IOCON->PIO[4] &
+                      /* Mask bits to zero which are setting */
+                      (~(IOCON_PIO_MODE_MASK | IOCON_PIO_OD_MASK)))
+
+                     /* Selects function mode (on-chip pull-up/pull-down resistor control).: Pull-up. Pull-up resistor
+                      * enabled. */
+                     | IOCON_PIO_MODE(PIO0_4_MODE_PULL_UP)
+
+                     /* Open-drain mode.: Open-drain mode enabled. Remark: This is not a true open-drain mode. */
+                     | IOCON_PIO_OD(PIO0_4_OD_ENABLED));
 
     /* I2C1_SDA connect to P0_2 */
     SWM_SetMovablePinSelect(SWM0, kSWM_I2C_SDA, kSWM_PortPin_P0_2);
@@ -91,9 +112,9 @@ void BOARD_I2CInitPins(void)
 BOARD_UARTInitPins:
 - options: {callFromInitBoot: 'false', coreID: core0, enableClock: 'true'}
 - pin_list:
-  - {pin_num: '8', peripheral: USART0, signal: RXD, pin_signal: PIO0_0/ACMP_I1}
-  - {pin_num: '2', peripheral: USART0, signal: TXD, pin_signal: PIO0_4, identifier: ''}
-  - {pin_num: '5', peripheral: GPIO, signal: 'PIO0, 1', pin_signal: PIO0_1/ACMP_I2/CLKIN}
+  - {pin_num: '8', peripheral: USART0, signal: RXD, pin_signal: PIO0_0/ACMP_I1, identifier: UART_RXD}
+  - {pin_num: '2', peripheral: USART0, signal: TXD, pin_signal: PIO0_4, identifier: UART_TXD}
+  - {pin_num: '5', peripheral: GPIO, signal: 'PIO0, 1', pin_signal: PIO0_1/ACMP_I2/CLKIN, direction: OUTPUT, gpio_init_state: 'true', mode: pullUp, opendrain: enabled}
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS ***********
  */
 /* clang-format on */
@@ -109,6 +130,26 @@ void BOARD_UARTInitPins(void)
 {
     /* Enables clock for switch matrix.: Enable. */
     CLOCK_EnableClock(kCLOCK_Swm);
+    /* Enables the clock for the GPIO0 module */
+    CLOCK_EnableClock(kCLOCK_Gpio0);
+
+    gpio_pin_config_t UART_RDY_N_config = {
+        .pinDirection = kGPIO_DigitalOutput,
+        .outputLogic = 1U,
+    };
+    /* Initialize GPIO functionality on pin PIO0_1 (pin 5)  */
+    GPIO_PinInit(BOARD_UARTINITPINS_UART_RDY_N_GPIO, BOARD_UARTINITPINS_UART_RDY_N_PORT, BOARD_UARTINITPINS_UART_RDY_N_PIN, &UART_RDY_N_config);
+
+    IOCON->PIO[11] = ((IOCON->PIO[11] &
+                       /* Mask bits to zero which are setting */
+                       (~(IOCON_PIO_MODE_MASK | IOCON_PIO_OD_MASK)))
+
+                      /* Selects function mode (on-chip pull-up/pull-down resistor control).: Pull-up. Pull-up resistor
+                       * enabled. */
+                      | IOCON_PIO_MODE(PIO0_1_MODE_PULL_UP)
+
+                      /* Open-drain mode.: Open-drain mode enabled. Remark: This is not a true open-drain mode. */
+                      | IOCON_PIO_OD(PIO0_1_OD_ENABLED));
 
     /* USART0_TXD connect to P0_4 */
     SWM_SetMovablePinSelect(SWM0, kSWM_USART0_TXD, kSWM_PortPin_P0_4);
